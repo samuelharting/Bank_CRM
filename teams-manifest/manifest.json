@@ -1,0 +1,62 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "{{TEAMS_APP_ID}}",
+  "developer": {
+    "name": "Deerwood Bank",
+    "websiteUrl": "https://deerwoodbank.com",
+    "privacyUrl": "https://deerwoodbank.com/privacy",
+    "termsOfUseUrl": "https://deerwoodbank.com/terms"
+  },
+  "name": {
+    "short": "Deerwood CRM",
+    "full": "Deerwood Bank Sales CRM"
+  },
+  "description": {
+    "short": "Track leads, manage pipeline, and monitor sales activity",
+    "full": "Internal CRM for Deerwood Bank sales team. Track leads and clients, manage your pipeline, log activities, get AI-powered search, and view performance dashboards - all inside Teams."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#1E40AF",
+  "staticTabs": [
+    {
+      "entityId": "dashboard",
+      "name": "Dashboard",
+      "contentUrl": "{{APP_URL}}?inTeams=true&tab=dashboard",
+      "scopes": [
+        "personal"
+      ]
+    },
+    {
+      "entityId": "leads",
+      "name": "Leads",
+      "contentUrl": "{{APP_URL}}?inTeams=true&tab=leads",
+      "scopes": [
+        "personal"
+      ]
+    },
+    {
+      "entityId": "contacts",
+      "name": "Contacts",
+      "contentUrl": "{{APP_URL}}?inTeams=true&tab=contacts",
+      "scopes": [
+        "personal"
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "{{APP_DOMAIN}}"
+  ],
+  "webApplicationInfo": {
+    "id": "{{AZURE_CLIENT_ID}}",
+    "resource": "api://{{APP_DOMAIN}}/{{AZURE_CLIENT_ID}}"
+  }
+}

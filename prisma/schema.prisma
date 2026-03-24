@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SALES_REP
+  BRANCH_MANAGER
+  EXECUTIVE
+  ADMIN
+  COMPLIANCE_READONLY
+}
+
+enum LeadStatus {
+  PROSPECT
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+  DORMANT
+}
+
+enum LeadSource {
+  REFERRAL
+  WALK_IN
+  PHONE
+  WEBSITE
+  EVENT
+  EXISTING_CLIENT
+  OTHER
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  FOLLOW_UP
+}
+
+enum LeadDocumentCategory {
+  TAX_RETURN
+  FINANCIAL
+  OTHER
+}
+
+enum TicklerRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum AutomationTrigger {
+  LEAD_STATUS_CHANGE
+  NO_ACTIVITY_DAYS
+  FOLLOW_UP_OVERDUE
+  LEAD_CREATED
+  LEAD_ASSIGNED
+}
+
+enum AutomationAction {
+  SEND_NOTIFICATION
+  SEND_EMAIL
+  CREATE_TASK
+  CHANGE_STATUS
+  ASSIGN_LEAD
+}
+
+model User {
+  id          String    @id @default(uuid())
+  entraId     String    @unique
+  email       String    @unique
+  displayName String
+  role        UserRole  @default(SALES_REP)
+  branch      String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  leads       Lead[]    @relation("AssignedRep")
+  activities  Activity[]
+  documentsUploaded LeadDocument[]
+  importJobs      ImportJob[]
+  ticklers        Tickler[]
+  notifications Notification[]
+  automationsCreated Automation[] @relation("AutomationCreator")
+  emailSyncStatus EmailSyncStatus?
+}
+
+model Lead {
+  id           String      @id @default(uuid())
+  firstName    String
+  lastName     String
+  company      String?
+  email        String?
+  phone        String?
+  /// NAICS or internal industry code (e.g. "522110")
+  industryCode String?
+  addressLine1 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  latitude     Float?
+  longitude    Float?
+  source       LeadSource  @default(OTHER)
+  status       LeadStatus  @default(PROSPECT)
+  pipelineValue Decimal?   @db.Decimal(12, 2)
+  notes        String?     @db.Text
+  nextFollowUp DateTime?
+  branch       String?
+  assignedToId String
+  assignedTo   User        @relation("AssignedRep", fields: [assignedToId], references: [id])
+  contacts     Contact[]
+  activities   Activity[]
+  documents    LeadDocument[]
+  ticklers     Tickler[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([assignedToId])
+  @@index([status])
+  @@index([nextFollowUp])
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  title     String?
+  isPrimary Boolean  @default(false)
+  notes     String?  @db.Text
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+model ImportJob {
+  id               String   @id @default(uuid())
+  createdById      String
+  createdBy        User     @relation(fields: [createdById], references: [id])
+  originalFileName String
+  assignedToId     String
+  mappingJson      Json
+  rowCount         Int
+  insertedCount    Int
+  failedCount      Int
+  skippedCount     Int      @default(0)
+  errorLog         String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model LeadDocument {
+  id           String               @id @default(uuid())
+  leadId       String
+  lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  category     LeadDocumentCategory @default(OTHER)
+  fileName     String
+  contentType  String
+  sizeBytes    Int
+  /// Blob object key (Azure) or relative path under local storage
+  blobPath     String
+  uploadedById String
+  uploadedBy   User                 @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime             @default(now())
+
+  @@index([leadId])
+  @@index([uploadedById])
+}
+
+model Tickler {
+  id           String            @id @default(uuid())
+  leadId       String
+  lead         Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  ownerId      String
+  owner        User              @relation(fields: [ownerId], references: [id])
+  title        String
+  notes        String?           @db.Text
+  dueAt        DateTime
+  recurrence   TicklerRecurrence @default(NONE)
+  completedAt  DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([ownerId, dueAt])
+  @@index([leadId])
+  @@index([dueAt])
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  type        ActivityType
+  subject     String
+  description String?      @db.Text
+  scheduledAt DateTime?
+  completedAt DateTime?
+  leadId      String
+  lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  autoLogged  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([scheduledAt])
+}
+
+model Automation {
+  id           String            @id @default(uuid())
+  name         String
+  description  String?
+  isActive     Boolean           @default(true)
+  trigger      AutomationTrigger
+  conditions   Json
+  action       AutomationAction
+  actionConfig Json
+  createdById  String
+  createdBy    User              @relation("AutomationCreator", fields: [createdById], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  logs         AutomationLog[]
+}
+
+model AutomationLog {
+  id           String      @id @default(uuid())
+  automationId String
+  automation   Automation  @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  leadId       String?
+  userId       String?
+  status       String
+  message      String?
+  executedAt   DateTime    @default(now())
+
+  @@index([automationId])
+  @@index([executedAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model EmailSyncStatus {
+  userId         String   @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSyncAt     DateTime?
+  emailsMatched  Int      @default(0)
+  emailsSkipped  Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}

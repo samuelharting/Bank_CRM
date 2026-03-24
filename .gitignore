@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Azure Functions
+local.settings.json
+bin/
+obj/
+
+# Prisma / local DB artifacts
+.import-temp/
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
