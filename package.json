@@ -12,7 +12,9 @@
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "dev:api:express": "npm run dev:express -w api",
+    "start:api:express": "npm run start:express -w api"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
