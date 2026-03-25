@@ -4,7 +4,7 @@ import { apiFetch } from "../lib/api";
 import { isReadOnlyRole } from "../lib/roles";
 import { useAuth } from "../auth/useAuth";
 import { ToastContainer, type ToastMessage } from "../components/Toast";
-import type { ApiLead, ApiTickler, ApiUser, TicklerRecurrence } from "../types";
+import type { ApiLead, ApiTickler, TicklerRecurrence } from "../types";
 import { TICKLER_RECURRENCES, TICKLER_RECURRENCE_LABELS } from "../types";
 
 type FilterTab = "overdue" | "today" | "upcoming" | "completed";

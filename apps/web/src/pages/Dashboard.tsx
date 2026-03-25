@@ -260,8 +260,8 @@ export function Dashboard(): JSX.Element {
                   <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                   <Tooltip
                     contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                    formatter={(value: number) => [value, "Leads"]}
-                    labelFormatter={(label: string) => `Stage: ${label}`}
+                    formatter={(value) => [value, "Leads"]}
+                    labelFormatter={(label) => `Stage: ${label}`}
                   />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {pipeline.stages.map((stage) => (
