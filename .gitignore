@@ -3,8 +3,10 @@ node_modules/
 
 # Environment (never commit secrets)
 .env
+.env.*
 .env.local
 .env.*.local
+!.env.example
 
 # Build outputs
 dist/
@@ -17,7 +19,14 @@ bin/
 obj/
 
 # Prisma / local DB artifacts
+.prisma/
 .import-temp/
+
+# Certificates / secret material
+*.pem
+*.key
+*.pfx
+*.p12
 
 # Logs & OS
 *.log

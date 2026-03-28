@@ -24,6 +24,7 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_API_URL: https://deerwood-crm-api.azurewebsites.net/api
+          # Demo-only auth settings until real Entra ID access is provisioned.
           VITE_DEV_AUTH_BYPASS: "true"
           VITE_AZURE_CLIENT_ID: placeholder
           VITE_AZURE_TENANT_ID: placeholder

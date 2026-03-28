@@ -10,13 +10,13 @@
     "dev:api": "npm run dev -w api",
     "build": "npm run build -w web && npm run build -w api",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "npm run prisma:generate -w api",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "dev:api:express": "npm run dev:express -w api",
     "start:api:express": "npm run start:express -w api",
-    "start": "node apps/api/dist/src/expressServer.js",
-    "postinstall": "npx prisma generate"
+    "start": "npm run start:express -w api",
+    "postinstall": "npm run prisma:generate"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

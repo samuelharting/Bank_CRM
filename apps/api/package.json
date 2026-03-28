@@ -5,10 +5,16 @@
   "type": "module",
   "main": "dist/src/index.js",
   "scripts": {
+    "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
+    "predev": "npm run prisma:generate",
     "dev": "func start",
+    "prebuild": "npm run prisma:generate",
     "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run prisma:generate",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prestart:express": "npm run prisma:generate",
     "start:express": "node dist/src/expressServer.js",
+    "predev:express": "npm run prisma:generate",
     "dev:express": "npx tsx watch src/expressServer.ts"
   },
   "dependencies": {
