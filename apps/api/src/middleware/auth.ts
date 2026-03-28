@@ -17,9 +17,14 @@ const azureClientId = process.env.AZURE_CLIENT_ID;
 /** Must match `DEV_BYPASS_BEARER` in `apps/web/src/lib/devAuth.ts`. */
 export const DEV_BYPASS_TOKEN = "__dev_bypass__";
 
-/** Local dev only: never true when NODE_ENV is production. */
+/**
+ * Dev auth bypass - enabled when DEV_AUTH_BYPASS=true.
+ * For production safety, also requires DEV_AUTH_BYPASS_FORCE=true if NODE_ENV=production.
+ */
 export function isDevAuthBypassEnabled(): boolean {
-  return process.env.DEV_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
+  if (process.env.DEV_AUTH_BYPASS !== "true") return false;
+  if (process.env.NODE_ENV === "production" && process.env.DEV_AUTH_BYPASS_FORCE !== "true") return false;
+  return true;
 }
 
 const jwks = jwksClient({
