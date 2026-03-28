@@ -2,6 +2,15 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, isDevAuthBypassEnabled } from "../middleware/auth.js";
 
+const DB_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Database operation timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
 /**
  * Public list of active users for the local dev login picker.
  * Disabled in production and when DEV_AUTH_BYPASS is not set (returns 404).
@@ -19,11 +28,14 @@ export async function devUsers(request: HttpRequest, context: InvocationContext)
   }
 
   try {
-    const users = await prisma.user.findMany({
-      where: { isActive: true },
-      orderBy: { displayName: "asc" },
-      select: { id: true, displayName: true, email: true, branch: true, role: true },
-    });
+    const users = await withTimeout(
+      prisma.user.findMany({
+        where: { isActive: true },
+        orderBy: { displayName: "asc" },
+        select: { id: true, displayName: true, email: true, branch: true, role: true },
+      }),
+      DB_TIMEOUT_MS,
+    );
     return { status: 200, headers: corsHeaders(), jsonBody: { users } };
   } catch (error) {
     context.error("devUsers failed", error);
