@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/src/index.js",
   "scripts": {
-    "prisma:generate": "npx prisma generate --schema ../../prisma/schema.prisma",
+    "prisma:generate": "node ../../node_modules/prisma/build/index.js generate --schema ../../prisma/schema.prisma",
     "predev": "npm run prisma:generate",
     "dev": "func start",
     "prebuild": "npm run prisma:generate",

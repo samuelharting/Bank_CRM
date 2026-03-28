@@ -10,12 +10,12 @@
     "dev:api": "npm run dev -w api",
     "build": "npm run build -w web && npm run build -w api",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
-    "prisma:generate": "npm run prisma:generate -w api",
+    "prisma:generate": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "dev:api:express": "npm run dev:express -w api",
-    "start:api:express": "npx prisma generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
-    "start": "npx prisma generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
+    "start:api:express": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
+    "start": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
     "postinstall": "npm run prisma:generate"
   },
   "prisma": {
