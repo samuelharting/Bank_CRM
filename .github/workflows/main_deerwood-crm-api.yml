@@ -60,7 +60,7 @@ jobs:
           az webapp config appsettings set \
             --name deerwood-crm-api \
             --resource-group "$RESOURCE_GROUP" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false WEBSITE_RUN_FROM_PACKAGE=1
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp

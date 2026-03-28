@@ -12,7 +12,6 @@
     "build": "tsc -p tsconfig.json",
     "pretypecheck": "npm run prisma:generate",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prestart:express": "npm run prisma:generate",
     "start:express": "node dist/src/expressServer.js",
     "predev:express": "npm run prisma:generate",
     "dev:express": "npx tsx watch src/expressServer.ts"
