@@ -56,10 +56,9 @@ jobs:
 
       - name: Disable App Service remote build
         run: |
-          RESOURCE_GROUP=$(az webapp show --name deerwood-crm-api --query resourceGroup -o tsv)
           az webapp config appsettings set \
             --name deerwood-crm-api \
-            --resource-group "$RESOURCE_GROUP" \
+            --resource-group deerwood-crm \
             --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
       - name: 'Deploy to Azure Web App'
