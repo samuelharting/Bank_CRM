@@ -18,13 +18,11 @@ const azureClientId = process.env.AZURE_CLIENT_ID;
 export const DEV_BYPASS_TOKEN = "__dev_bypass__";
 
 /**
- * Dev auth bypass - enabled when DEV_AUTH_BYPASS=true.
- * For production safety, also requires DEV_AUTH_BYPASS_FORCE=true if NODE_ENV=production.
+ * Dev auth bypass - enabled when DEV_AUTH_BYPASS=true is explicitly set.
+ * This is intentionally opt-in via environment variable for any environment.
  */
 export function isDevAuthBypassEnabled(): boolean {
-  if (process.env.DEV_AUTH_BYPASS !== "true") return false;
-  if (process.env.NODE_ENV === "production" && process.env.DEV_AUTH_BYPASS_FORCE !== "true") return false;
-  return true;
+  return process.env.DEV_AUTH_BYPASS === "true";
 }
 
 const jwks = jwksClient({
