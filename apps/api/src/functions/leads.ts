@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { ActivityType, LeadSource, LeadStatus, Prisma } from "@prisma/client";
+import type { ActivityType as ActivityTypeType, LeadSource as LeadSourceType, LeadStatus as LeadStatusType, Prisma } from "@prisma/client";
+import pkg from "@prisma/client";
+const { ActivityType, LeadSource, LeadStatus } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { isReadOnlyRole, leadScopeWhere } from "../middleware/scope.js";
@@ -102,10 +104,10 @@ const getListWhere = (request: HttpRequest): Prisma.LeadWhereInput => {
     ];
   }
 
-  if (status && status !== "ALL") where.status = status as LeadStatus;
+  if (status && status !== "ALL") where.status = status as LeadStatusType;
   if (assignedToId && assignedToId !== "ALL") where.assignedToId = assignedToId;
   if (branch && branch !== "ALL") where.branch = branch;
-  if (source && source !== "ALL") where.source = source as LeadSource;
+  if (source && source !== "ALL") where.source = source as LeadSourceType;
 
   if (followUpStart || followUpEnd) {
     where.nextFollowUp = {
@@ -276,7 +278,7 @@ export async function leadActivities(request: HttpRequest, context: InvocationCo
       data: {
         leadId: id,
         userId: auth.user.id,
-        type: body.type as ActivityType,
+        type: body.type as ActivityTypeType,
         subject: body.subject,
         description: body.description,
         scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,

@@ -1,15 +1,25 @@
-import { ActivityType, Automation, AutomationAction, AutomationTrigger, Lead, LeadStatus, Prisma, User, UserRole } from "@prisma/client";
+import type {
+  Automation,
+  AutomationTrigger as AutomationTriggerType,
+  Lead,
+  LeadStatus as LeadStatusType,
+  Prisma,
+  User,
+  UserRole as UserRoleType,
+} from "@prisma/client";
+import pkg from "@prisma/client";
+const { ActivityType, AutomationAction, AutomationTrigger, LeadStatus, UserRole } = pkg;
 import { prisma } from "../db/client.js";
 import { renderTemplate } from "../utils/templates.js";
 
 interface AutomationEventInput {
-  trigger: AutomationTrigger;
+  trigger: AutomationTriggerType;
   lead: Lead;
   previousLead?: Lead | null;
   actorUserId?: string;
 }
 
-const activeLeadStatuses: LeadStatus[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL];
+const activeLeadStatuses: LeadStatusType[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL];
 
 const hasRecentExecution = async (automationId: string, leadId: string): Promise<boolean> => {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -28,7 +38,7 @@ const resolveTargetUsers = async (targetRole: string | undefined, lead: Lead): P
   if (!targetRole) return [];
   return prisma.user.findMany({
     where: {
-      role: targetRole as UserRole,
+      role: targetRole as UserRoleType,
       isActive: true,
       OR: [{ branch: lead.branch }, { role: { in: [UserRole.EXECUTIVE, UserRole.ADMIN, UserRole.COMPLIANCE_READONLY] } }],
     },
@@ -78,7 +88,7 @@ const executeAction = async (automation: Automation, lead: Lead): Promise<{ stat
   }
 
   if (automation.action === AutomationAction.CHANGE_STATUS) {
-    const newStatus = actionConfig.newStatus as LeadStatus | undefined;
+    const newStatus = actionConfig.newStatus as LeadStatusType | undefined;
     if (!newStatus) return { status: "skipped", message: "No newStatus configured" };
     await prisma.lead.update({ where: { id: lead.id }, data: { status: newStatus } });
     return { status: "success", message: `Changed status to ${newStatus}` };
@@ -101,8 +111,8 @@ const executeAction = async (automation: Automation, lead: Lead): Promise<{ stat
 const evaluateEventConditions = (automation: Automation, input: AutomationEventInput): boolean => {
   const conditions = automation.conditions as Prisma.JsonObject;
   if (automation.trigger === AutomationTrigger.LEAD_STATUS_CHANGE) {
-    const fromStatus = conditions.fromStatus as LeadStatus | undefined;
-    const toStatus = conditions.toStatus as LeadStatus | undefined;
+    const fromStatus = conditions.fromStatus as LeadStatusType | undefined;
+    const toStatus = conditions.toStatus as LeadStatusType | undefined;
     const previous = input.previousLead?.status;
     return (!fromStatus || previous === fromStatus) && (!toStatus || input.lead.status === toStatus);
   }
@@ -188,7 +198,7 @@ export const runTimerAutomations = async (): Promise<void> => {
       if (automation.trigger === AutomationTrigger.NO_ACTIVITY_DAYS) {
         const days = Number(conditions.days ?? 7);
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-        const statuses = ((conditions.statuses as string[] | undefined) ?? activeLeadStatuses) as LeadStatus[];
+        const statuses = ((conditions.statuses as string[] | undefined) ?? activeLeadStatuses) as LeadStatusType[];
         const branches = (conditions.branches as string[] | undefined) ?? [];
         leads = await prisma.lead.findMany({
           where: {

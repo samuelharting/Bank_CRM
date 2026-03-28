@@ -3,7 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import ExcelJS from "exceljs";
-import { LeadSource, LeadStatus, Prisma, UserRole } from "@prisma/client";
+import type { LeadSource as LeadSourceType, LeadStatus as LeadStatusType, Prisma } from "@prisma/client";
+import pkg from "@prisma/client";
+const { LeadSource, LeadStatus, UserRole } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { isReadOnlyRole } from "../middleware/scope.js";
@@ -86,10 +88,10 @@ const headerIndex = (headers: string[], mapping: string | null | undefined): num
   return idx >= 0 ? idx : undefined;
 };
 
-const parseLeadStatus = (raw: string): LeadStatus | undefined => {
+const parseLeadStatus = (raw: string): LeadStatusType | undefined => {
   const s = raw.trim().toUpperCase().replace(/\s+/g, "_");
-  if ((Object.values(LeadStatus) as string[]).includes(s)) return s as LeadStatus;
-  const map: Record<string, LeadStatus> = {
+  if ((Object.values(LeadStatus) as string[]).includes(s)) return s as LeadStatusType;
+  const map: Record<string, LeadStatusType> = {
     NEW: LeadStatus.PROSPECT,
     PROSPECT: LeadStatus.PROSPECT,
     CONTACTED: LeadStatus.CONTACTED,
@@ -103,9 +105,9 @@ const parseLeadStatus = (raw: string): LeadStatus | undefined => {
   return map[s];
 };
 
-const parseLeadSource = (raw: string): LeadSource | undefined => {
+const parseLeadSource = (raw: string): LeadSourceType | undefined => {
   const s = raw.trim().toUpperCase().replace(/\s+/g, "_");
-  if ((Object.values(LeadSource) as string[]).includes(s)) return s as LeadSource;
+  if ((Object.values(LeadSource) as string[]).includes(s)) return s as LeadSourceType;
   return undefined;
 };
 
@@ -391,7 +393,7 @@ export async function importExecute(request: HttpRequest, context: InvocationCon
       const branchRaw = idx.branch !== undefined ? cellToString(row.getCell(idx.branch + 1)) : "";
       const branch = normalizeBranch(auth.user, assignee.branch, branchRaw || undefined);
 
-      let status: LeadStatus = LeadStatus.PROSPECT;
+      let status: LeadStatusType = LeadStatus.PROSPECT;
       if (idx.status !== undefined) {
         const st = cellToString(row.getCell(idx.status + 1));
         if (st) {
@@ -400,7 +402,7 @@ export async function importExecute(request: HttpRequest, context: InvocationCon
         }
       }
 
-      let source: LeadSource = LeadSource.OTHER;
+      let source: LeadSourceType = LeadSource.OTHER;
       if (idx.source !== undefined) {
         const so = cellToString(row.getCell(idx.source + 1));
         if (so) {

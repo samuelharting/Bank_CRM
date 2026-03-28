@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { Prisma, TicklerRecurrence } from "@prisma/client";
+import type { Prisma, TicklerRecurrence as TicklerRecurrenceType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { TicklerRecurrence } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { isReadOnlyRole, leadScopeWhere } from "../middleware/scope.js";
@@ -10,7 +12,7 @@ interface TicklerInput {
   title: string;
   notes?: string;
   dueAt: string;
-  recurrence?: TicklerRecurrence;
+  recurrence?: TicklerRecurrenceType;
 }
 
 const parseTickler = async (request: HttpRequest): Promise<TicklerInput> => {
@@ -31,7 +33,7 @@ const ticklerScopeWhere = (user: AuthenticatedUser): Prisma.TicklerWhereInput =>
   lead: leadScopeWhere(user),
 });
 
-const advanceDueDate = (current: Date, recurrence: TicklerRecurrence): Date => {
+const advanceDueDate = (current: Date, recurrence: TicklerRecurrenceType): Date => {
   const next = new Date(current);
   switch (recurrence) {
     case TicklerRecurrence.DAILY:
@@ -168,7 +170,7 @@ export async function ticklersHandler(request: HttpRequest, context: InvocationC
       if (body.title) data.title = String(body.title);
       if (body.notes !== undefined) data.notes = body.notes ? String(body.notes) : null;
       if (body.dueAt) data.dueAt = new Date(String(body.dueAt));
-      if (body.recurrence) data.recurrence = String(body.recurrence) as TicklerRecurrence;
+      if (body.recurrence) data.recurrence = String(body.recurrence) as TicklerRecurrenceType;
 
       const updated = await prisma.tickler.update({
         where: { id },

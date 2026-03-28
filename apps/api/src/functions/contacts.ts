@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { isReadOnlyRole, leadScopeWhere } from "../middleware/scope.js";

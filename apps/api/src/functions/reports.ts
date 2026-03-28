@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { LeadStatus, Prisma, UserRole } from "@prisma/client";
+import type { Prisma, UserRole as UserRoleType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { LeadStatus, UserRole } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { leadScopeWhere } from "../middleware/scope.js";
@@ -12,7 +14,7 @@ const withError = (context: InvocationContext, label: string, error: unknown): H
   return { status: 500, headers: corsHeaders(), jsonBody: { error: "Request failed", details: message } };
 };
 
-const canViewReports = (role: UserRole): boolean =>
+const canViewReports = (role: UserRoleType): boolean =>
   role === UserRole.BRANCH_MANAGER ||
   role === UserRole.EXECUTIVE ||
   role === UserRole.ADMIN ||

@@ -1,4 +1,5 @@
-import { ActivityType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { ActivityType } = pkg;
 import { prisma } from "../db/client.js";
 import { getUserSentEmails } from "./graph.js";
 

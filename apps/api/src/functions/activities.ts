@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { ActivityType, Prisma } from "@prisma/client";
+import type { ActivityType as ActivityTypeType, Prisma } from "@prisma/client";
+import pkg from "@prisma/client";
+const { ActivityType } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { activityScopeWhere, isReadOnlyRole, leadScopeWhere } from "../middleware/scope.js";
@@ -76,7 +78,7 @@ export async function activities(request: HttpRequest, context: InvocationContex
         AND: [
           activityScopeWhere(auth.user),
           {
-            ...(type && type !== "ALL" ? { type: type as ActivityType } : {}),
+            ...(type && type !== "ALL" ? { type: type as ActivityTypeType } : {}),
             ...(userId && userId !== "ALL" ? { userId } : {}),
             ...(branch && branch !== "ALL" ? { lead: { branch } } : {}),
             ...(completion === "completed"
@@ -126,7 +128,7 @@ export async function activities(request: HttpRequest, context: InvocationContex
       if (!allowed) return { status: 403, headers: corsHeaders(), jsonBody: { error: "Access denied" } };
       const created = await prisma.activity.create({
         data: {
-          type: body.type as ActivityType,
+          type: body.type as ActivityTypeType,
           subject: body.subject,
           leadId: body.leadId,
           userId: auth.user.id,

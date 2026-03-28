@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { LeadDocumentCategory } from "@prisma/client";
+import type { LeadDocumentCategory as LeadDocumentCategoryType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { LeadDocumentCategory } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { isReadOnlyRole, leadScopeWhere } from "../middleware/scope.js";
@@ -26,10 +28,10 @@ const sanitizeFileName = (name: string): string => {
   return base.slice(0, 200) || "upload";
 };
 
-const parseCategory = (value: unknown): LeadDocumentCategory => {
+const parseCategory = (value: unknown): LeadDocumentCategoryType => {
   const s = String(value ?? "").trim().toUpperCase();
   if (s === "TAX_RETURN" || s === "FINANCIAL" || s === "OTHER") {
-    return s as LeadDocumentCategory;
+    return s as LeadDocumentCategoryType;
   }
   return LeadDocumentCategory.OTHER;
 };

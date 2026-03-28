@@ -1,9 +1,15 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { AutomationAction, AutomationTrigger, UserRole } from "@prisma/client";
+import type {
+  AutomationAction as AutomationActionType,
+  AutomationTrigger as AutomationTriggerType,
+  UserRole as UserRoleType,
+} from "@prisma/client";
+import pkg from "@prisma/client";
+const { AutomationAction, AutomationTrigger, UserRole } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 
-const requireAdmin = (role: UserRole): boolean => role === UserRole.ADMIN;
+const requireAdmin = (role: UserRoleType): boolean => role === UserRole.ADMIN;
 
 export async function automations(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const preflight = handleCorsPreflight(request);
@@ -49,9 +55,9 @@ export async function automations(request: HttpRequest, context: InvocationConte
       const body = (await request.json()) as {
         name: string;
         description?: string;
-        trigger: AutomationTrigger;
+        trigger: AutomationTriggerType;
         conditions: unknown;
-        action: AutomationAction;
+        action: AutomationActionType;
         actionConfig: unknown;
       };
       const created = await prisma.automation.create({
@@ -73,9 +79,9 @@ export async function automations(request: HttpRequest, context: InvocationConte
         name?: string;
         description?: string;
         isActive?: boolean;
-        trigger?: AutomationTrigger;
+        trigger?: AutomationTriggerType;
         conditions?: unknown;
-        action?: AutomationAction;
+        action?: AutomationActionType;
         actionConfig?: unknown;
       };
       const updated = await prisma.automation.update({

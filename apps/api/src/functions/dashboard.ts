@@ -1,11 +1,13 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { ActivityType, LeadStatus, Prisma, UserRole } from "@prisma/client";
+import type { LeadStatus as LeadStatusType, Prisma, UserRole as UserRoleType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { ActivityType, LeadStatus, UserRole } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { activityScopeWhere, leadScopeWhere } from "../middleware/scope.js";
 
-const activeStatusFilter: LeadStatus[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL];
-const wonLostStatusFilter: LeadStatus[] = [LeadStatus.WON, LeadStatus.LOST];
+const activeStatusFilter: LeadStatusType[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL];
+const wonLostStatusFilter: LeadStatusType[] = [LeadStatus.WON, LeadStatus.LOST];
 
 const monthStart = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), 1);
 const addMonths = (date: Date, amount: number): Date => new Date(date.getFullYear(), date.getMonth() + amount, 1);
@@ -19,7 +21,7 @@ const withError = (context: InvocationContext, label: string, error: unknown): H
   return { status: 500, headers: corsHeaders(), jsonBody: { error: "Request failed", details: message } };
 };
 
-const ensureManagerOrExec = (role: UserRole): boolean =>
+const ensureManagerOrExec = (role: UserRoleType): boolean =>
   role === UserRole.BRANCH_MANAGER || role === UserRole.EXECUTIVE || role === UserRole.ADMIN || role === UserRole.COMPLIANCE_READONLY;
 
 export async function dashboardStats(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -78,7 +80,7 @@ export async function dashboardStats(request: HttpRequest, context: InvocationCo
         }),
       ]);
 
-    const convertRate = (rows: Array<{ status: LeadStatus; _count: { status: number } }>): number => {
+    const convertRate = (rows: Array<{ status: LeadStatusType; _count: { status: number } }>): number => {
       const won = rows.find((row) => row.status === LeadStatus.WON)?._count.status ?? 0;
       const lost = rows.find((row) => row.status === LeadStatus.LOST)?._count.status ?? 0;
       const total = won + lost;
@@ -109,7 +111,7 @@ export async function dashboardPipeline(request: HttpRequest, context: Invocatio
 
   try {
     const scope = leadScopeWhere(auth.user);
-    const statuses: LeadStatus[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL, LeadStatus.WON];
+    const statuses: LeadStatusType[] = [LeadStatus.PROSPECT, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL, LeadStatus.WON];
     const stages = await Promise.all(
       statuses.map(async (status) => {
         const [count, value] = await Promise.all([

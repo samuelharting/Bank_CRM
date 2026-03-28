@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { LeadStatus } from "@prisma/client";
+import type { LeadStatus as LeadStatusType } from "@prisma/client";
+import pkg from "@prisma/client";
+const { LeadStatus } = pkg;
 import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { leadScopeWhere } from "../middleware/scope.js";
@@ -23,7 +25,7 @@ export async function mapLeads(request: HttpRequest, context: InvocationContext)
         AND: [
           scope,
           { latitude: { not: null }, longitude: { not: null } },
-          { status: { in: status ? [status as LeadStatus] : activeStatuses } },
+          { status: { in: status ? [status as LeadStatusType] : activeStatuses } },
           branch ? { branch } : {},
           assignedToId && assignedToId !== "ALL" ? { assignedToId } : {},
         ],

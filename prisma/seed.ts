@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationAction, AutomationTrigger, ActivityType, LeadSource, LeadStatus, TicklerRecurrence, UserRole } from "@prisma/client";
+import pkg from "@prisma/client";
+const { PrismaClient, AutomationAction, AutomationTrigger, ActivityType, LeadSource, LeadStatus, TicklerRecurrence, UserRole } = pkg;
 
 const prisma = new PrismaClient();
 

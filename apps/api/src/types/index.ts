@@ -1,5 +1,4 @@
-import type { Lead } from "@prisma/client";
-import { ActivityType, LeadSource, LeadStatus, UserRole } from "@prisma/client";
+import type { ActivityType, Lead, LeadSource, LeadStatus, UserRole } from "@prisma/client";
 
 export interface AuthenticatedUser {
   id: string;
