@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { resolveApiBaseUrl } from "../lib/apiBaseUrl";
 import { isDevAuthBypassClientEnabled, writeDevBypassUser } from "../lib/devAuth";
 import type { AuthUser, UserRole } from "../types";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:7071/api";
+const apiUrl = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
 interface DevUserRow {
   id: string;
@@ -27,8 +28,10 @@ export function Login(): JSX.Element {
     const load = async (): Promise<void> => {
       setDevLoading(true);
       setDevError(null);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 15000);
       try {
-        const res = await fetch(`${apiUrl}/auth/dev-users`);
+        const res = await fetch(`${apiUrl}/auth/dev-users`, { signal: controller.signal });
         if (!res.ok) {
           setDevError(
             res.status === 404
@@ -40,10 +43,15 @@ export function Login(): JSX.Element {
         }
         const data = (await res.json()) as { users: DevUserRow[] };
         setDevUsers(data.users);
-      } catch {
-        setDevError("Could not reach the API. Is it running?");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setDevError(`Timed out loading demo users from ${apiUrl}/auth/dev-users.`);
+        } else {
+          setDevError("Could not reach the API. Is it running?");
+        }
         setDevUsers([]);
       } finally {
+        window.clearTimeout(timeoutId);
         setDevLoading(false);
       }
     };

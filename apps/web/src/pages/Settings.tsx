@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { apiFetch } from "../lib/api";
+import { resolveApiBaseUrl } from "../lib/apiBaseUrl";
 import { USER_ROLES } from "../types";
 
 const BRANCH_OPTIONS = ["ALL", "Baxter", "Bemidji", "Brainerd", "Deerwood", "Garrison", "Grand Rapids", "Hibbing", "Isle", "Nisswa", "Pequot Lakes", "Pine River", "Walker", "Crosby"];
@@ -28,7 +29,7 @@ export function Settings(): JSX.Element {
   const [healthStatus, setHealthStatus] = useState<"connected" | "unavailable" | "loading">("loading");
   const [adminStats, setAdminStats] = useState<{ users: number; leads: number; activities: number } | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:7071/api";
+  const apiUrl = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
   useEffect(() => {
     const stored = localStorage.getItem("crm-settings");

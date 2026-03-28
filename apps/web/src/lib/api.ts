@@ -1,9 +1,10 @@
 import { msalInstance } from "../auth/AuthProvider";
 import { apiScopes } from "../auth/msalConfig";
+import { resolveApiBaseUrl } from "./apiBaseUrl";
 import { DEV_BYPASS_BEARER, isDevAuthBypassClientEnabled, readDevBypassUser } from "./devAuth";
 import { getTeamsAuthToken, isInTeams } from "./teams";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:7071/api";
+const apiUrl = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
 type AuthContext = { accessToken: string | null; devUserId: string | null };
 
