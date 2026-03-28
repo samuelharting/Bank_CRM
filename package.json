@@ -15,8 +15,7 @@
     "prisma:seed": "prisma db seed",
     "dev:api:express": "npm run dev:express -w api",
     "start:api:express": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
-    "start": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js",
-    "postinstall": "npm run prisma:generate"
+    "start": "node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node apps/api/dist/src/expressServer.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
