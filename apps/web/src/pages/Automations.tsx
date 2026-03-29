@@ -102,9 +102,10 @@ export function Automations(): JSX.Element {
       </div>
 
       {showForm && (
-        <form onSubmit={saveAutomation} className="rounded-xl border border-slate-200 bg-white p-4">
+        <form onSubmit={saveAutomation} className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
           <h3 className="text-lg font-semibold text-slate-900">Create Automation</h3>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="text-sm font-medium text-gray-700">
               Name
               <input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" required />
@@ -113,119 +114,92 @@ export function Automations(): JSX.Element {
               Description
               <input value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </label>
-            <label className="text-sm font-medium text-gray-700">
-              Trigger
-              <select value={form.trigger} onChange={(e) => setForm((prev) => ({ ...prev, trigger: e.target.value as AutomationTrigger }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                {triggers.map((trigger) => (
-                  <option key={trigger} value={trigger}>
-                    {trigger}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-gray-700">
-              Action
-              <select value={form.action} onChange={(e) => setForm((prev) => ({ ...prev, action: e.target.value as AutomationAction }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                {actions.map((action) => (
-                  <option key={action} value={action}>
-                    {action}
-                  </option>
-                ))}
-                <option value="SEND_EMAIL" disabled>
-                  SEND_EMAIL (coming soon)
-                </option>
-              </select>
-            </label>
           </div>
 
-          <div className="mt-4 rounded-md bg-slate-50 p-3 text-xs text-slate-600">
-            <p className="font-semibold">Template variables</p>
-            <p>{`{{leadName}} {{company}} {{assignedRep}} {{daysSinceActivity}} {{branch}}`}</p>
-          </div>
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Trigger</legend>
+            <select value={form.trigger} onChange={(e) => setForm((prev) => ({ ...prev, trigger: e.target.value as AutomationTrigger }))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              {triggers.map((trigger) => (
+                <option key={trigger} value={trigger}>{trigger}</option>
+              ))}
+            </select>
+            <div className="mt-3 space-y-2">
+              {form.trigger === "NO_ACTIVITY_DAYS" && (
+                <div className="grid gap-2 md:grid-cols-3">
+                  <input type="number" placeholder="Days inactive" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, days: Number(e.target.value) } }))} />
+                  <select multiple className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, statuses: Array.from(e.target.selectedOptions).map((o) => o.value) } }))}>
+                    {LEAD_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                  </select>
+                  <input placeholder="Branches (comma separated)" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onBlur={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, branches: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } }))} />
+                </div>
+              )}
+              {form.trigger === "FOLLOW_UP_OVERDUE" && (
+                <input type="number" placeholder="Grace period (hours)" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { gracePeriodHours: Number(e.target.value) } }))} />
+              )}
+              {form.trigger === "LEAD_STATUS_CHANGE" && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  <select className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, fromStatus: e.target.value } }))}>
+                    <option value="">From status…</option>
+                    {LEAD_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                  </select>
+                  <select className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, toStatus: e.target.value } }))}>
+                    <option value="">To status…</option>
+                    {LEAD_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                  </select>
+                </div>
+              )}
+              {form.trigger === "LEAD_CREATED" && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  <select multiple className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, sources: Array.from(e.target.selectedOptions).map((o) => o.value) } }))}>
+                    {LEAD_SOURCES.map((source) => <option key={source}>{source}</option>)}
+                  </select>
+                  <input type="number" placeholder="Minimum value" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, minimumValue: Number(e.target.value) } }))} />
+                </div>
+              )}
+            </div>
+          </fieldset>
 
-          <div className="mt-4 space-y-3">
-            {form.trigger === "NO_ACTIVITY_DAYS" && (
-              <div className="grid gap-2 md:grid-cols-3">
-                <input type="number" placeholder="days" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, days: Number(e.target.value) } }))} />
-                <select multiple className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, statuses: Array.from(e.target.selectedOptions).map((o) => o.value) } }))}>
-                  {LEAD_STATUSES.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Action</legend>
+            <select value={form.action} onChange={(e) => setForm((prev) => ({ ...prev, action: e.target.value as AutomationAction }))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              {actions.map((action) => <option key={action} value={action}>{action}</option>)}
+              <option value="SEND_EMAIL" disabled>SEND_EMAIL (coming soon)</option>
+            </select>
+            <div className="mt-3 space-y-2">
+              {(form.action === "SEND_NOTIFICATION" || form.action === "SEND_EMAIL") && (
+                <>
+                  <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, targetRole: e.target.value } }))}>
+                    {Object.values(USER_ROLES).map((role) => <option key={role} value={role}>{role}</option>)}
+                    <option value="ASSIGNED_REP">ASSIGNED_REP</option>
+                  </select>
+                  <input placeholder="Title / subject template" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, titleTemplate: e.target.value, subjectTemplate: e.target.value } }))} />
+                  <textarea placeholder="Message / body template" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" rows={2} onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, messageTemplate: e.target.value, bodyTemplate: e.target.value } }))} />
+                </>
+              )}
+              {form.action === "CREATE_TASK" && (
+                <div className="grid gap-2 md:grid-cols-2">
+                  <input type="number" placeholder="Days from now" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, daysFromNow: Number(e.target.value) } }))} />
+                  <input placeholder="Subject" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, subject: e.target.value } }))} />
+                </div>
+              )}
+              {form.action === "CHANGE_STATUS" && (
+                <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, newStatus: e.target.value } }))}>
+                  {LEAD_STATUSES.map((status) => <option key={status}>{status}</option>)}
                 </select>
-                <input placeholder="branches comma separated" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onBlur={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, branches: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) } }))} />
-              </div>
-            )}
-            {form.trigger === "FOLLOW_UP_OVERDUE" && (
-              <input type="number" placeholder="grace period hours" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { gracePeriodHours: Number(e.target.value) } }))} />
-            )}
-            {form.trigger === "LEAD_STATUS_CHANGE" && (
-              <div className="grid gap-2 md:grid-cols-2">
-                <select className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, fromStatus: e.target.value } }))}>
-                  <option value="">from status</option>
-                  {LEAD_STATUSES.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
+              )}
+              {form.action === "ASSIGN_LEAD" && (
+                <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, targetUserId: e.target.value } }))}>
+                  {users.map((user) => <option key={user.id} value={user.id}>{user.displayName}</option>)}
                 </select>
-                <select className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, toStatus: e.target.value } }))}>
-                  <option value="">to status</option>
-                  {LEAD_STATUSES.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {form.trigger === "LEAD_CREATED" && (
-              <div className="grid gap-2 md:grid-cols-2">
-                <select multiple className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, sources: Array.from(e.target.selectedOptions).map((o) => o.value) } }))}>
-                  {LEAD_SOURCES.map((source) => (
-                    <option key={source}>{source}</option>
-                  ))}
-                </select>
-                <input type="number" placeholder="minimum value" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, conditions: { ...prev.conditions, minimumValue: Number(e.target.value) } }))} />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-slate-500">Template variables</summary>
+              <p className="mt-1 font-mono text-xs text-slate-500">{`{{leadName}} {{company}} {{assignedRep}} {{daysSinceActivity}} {{branch}}`}</p>
+            </details>
+          </fieldset>
 
-          <div className="mt-4 space-y-2">
-            {(form.action === "SEND_NOTIFICATION" || form.action === "SEND_EMAIL") && (
-              <>
-                <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, targetRole: e.target.value } }))}>
-                  {Object.values(USER_ROLES).map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                  <option value="ASSIGNED_REP">ASSIGNED_REP</option>
-                </select>
-                <input placeholder="title/subject template" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, titleTemplate: e.target.value, subjectTemplate: e.target.value } }))} />
-                <textarea placeholder="message/body template" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" rows={2} onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, messageTemplate: e.target.value, bodyTemplate: e.target.value } }))} />
-              </>
-            )}
-            {form.action === "CREATE_TASK" && (
-              <div className="grid gap-2 md:grid-cols-2">
-                <input type="number" placeholder="days from now" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, daysFromNow: Number(e.target.value) } }))} />
-                <input placeholder="subject" className="rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, subject: e.target.value } }))} />
-              </div>
-            )}
-            {form.action === "CHANGE_STATUS" && (
-              <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, newStatus: e.target.value } }))}>
-                {LEAD_STATUSES.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            )}
-            {form.action === "ASSIGN_LEAD" && (
-              <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" onChange={(e) => setForm((prev) => ({ ...prev, actionConfig: { ...prev.actionConfig, targetUserId: e.target.value } }))}>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.displayName}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setShowForm(false)} className="rounded-md border border-slate-300 px-4 py-2 text-sm">
               Cancel
             </button>

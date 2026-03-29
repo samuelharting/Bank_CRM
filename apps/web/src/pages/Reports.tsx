@@ -185,15 +185,12 @@ export function Reports(): JSX.Element {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <span className="font-medium">Branch</span>
-          <input
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            placeholder="All branches"
-            className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </label>
+        <input
+          value={branch}
+          onChange={(e) => setBranch(e.target.value)}
+          placeholder="Filter by branch…"
+          className="w-48 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
 
       {loading && (

@@ -1,4 +1,4 @@
-import { Clock, FileText, Mail, Phone, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, FileText, Mail, Phone, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { apiFetch } from "../lib/api";
@@ -36,6 +36,7 @@ export function Activities(): JSX.Element {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [calendar, setCalendar] = useState<Record<string, Record<string, number>>>({});
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [form, setForm] = useState({
     type: "CALL" as ActivityType,
@@ -140,45 +141,69 @@ export function Activities(): JSX.Element {
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="grid gap-2 md:grid-cols-6">
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="ALL">All types</option>
-            {ACTIVITY_TYPES.map((type) => (
-              <option key={type}>{type}</option>
-            ))}
-          </select>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="ALL">All reps</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.displayName}
-              </option>
-            ))}
-          </select>
-          <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="ALL">All branches</option>
-            {Array.from(new Set(users.map((u) => u.branch).filter(Boolean))).map((branch) => (
-              <option key={branch ?? "branch"}>{branch}</option>
-            ))}
-          </select>
-          <select value={completionFilter} onChange={(e) => setCompletionFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="ALL">All status</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="SCHEDULED">Scheduled</option>
-          </select>
-        </div>
-        <div className="mt-3 inline-flex rounded-md bg-slate-100 p-1 text-sm">
-          <button onClick={() => setViewMode("timeline")} className={`min-h-11 rounded px-3 ${viewMode === "timeline" ? "bg-white shadow" : ""}`}>
-            Timeline
-          </button>
-          <button onClick={() => setViewMode("calendar")} className={`min-h-11 rounded px-3 ${viewMode === "calendar" ? "bg-white shadow" : ""}`}>
-            Calendar
-          </button>
-        </div>
-      </div>
+      {(() => {
+        const advFilterCount = [repFilter !== "ALL", branchFilter !== "ALL", completionFilter !== "ALL"].filter(Boolean).length;
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <option value="ALL">All types</option>
+                {ACTIVITY_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="From" />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="To" />
+              <button
+                onClick={() => setShowMoreFilters((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  advFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                More{advFilterCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] text-white">{advFilterCount}</span>}
+                {showMoreFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              <div className="ml-auto inline-flex rounded-md bg-slate-100 p-0.5 text-sm">
+                <button onClick={() => setViewMode("timeline")} className={`rounded px-3 py-1.5 ${viewMode === "timeline" ? "bg-white shadow-sm font-medium" : "text-slate-600"}`}>
+                  Timeline
+                </button>
+                <button onClick={() => setViewMode("calendar")} className={`rounded px-3 py-1.5 ${viewMode === "calendar" ? "bg-white shadow-sm font-medium" : "text-slate-600"}`}>
+                  Calendar
+                </button>
+              </div>
+            </div>
+            {showMoreFilters && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                  <option value="ALL">All reps</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>{user.displayName}</option>
+                  ))}
+                </select>
+                <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                  <option value="ALL">All branches</option>
+                  {Array.from(new Set(users.map((u) => u.branch).filter(Boolean))).map((branch) => (
+                    <option key={branch ?? "branch"}>{branch}</option>
+                  ))}
+                </select>
+                <select value={completionFilter} onChange={(e) => setCompletionFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                  <option value="ALL">All status</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="SCHEDULED">Scheduled</option>
+                </select>
+                {advFilterCount > 0 && (
+                  <button
+                    onClick={() => { setRepFilter("ALL"); setBranchFilter("ALL"); setCompletionFilter("ALL"); }}
+                    className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl border border-slate-200 bg-white" />
@@ -289,13 +314,11 @@ export function Activities(): JSX.Element {
                 <h3 className="text-lg font-semibold text-slate-900">Quick Log Activity</h3>
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
-                <div className="grid grid-cols-5 gap-2">
+                <select value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as ActivityType }))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                   {ACTIVITY_TYPES.map((type) => (
-                    <button key={type} type="button" onClick={() => setForm((prev) => ({ ...prev, type }))} className={`min-h-11 rounded-md border px-2 text-xs ${form.type === type ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-700"}`}>
-                      {type}
-                    </button>
+                    <option key={type} value={type}>{type}</option>
                   ))}
-                </div>
+                </select>
                 <select value={form.leadId} onChange={(e) => setForm((prev) => ({ ...prev, leadId: e.target.value }))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                   <option value="">Select lead</option>
                   {leads.map((lead) => (

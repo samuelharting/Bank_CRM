@@ -306,31 +306,29 @@ export function Ticklers(): JSX.Element {
                   {t.owner && <p className="text-[11px] text-slate-400">{t.owner.displayName}</p>}
                 </div>
                 {!readOnly && !t.completedAt && (
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => completeTickler(t).catch(() => undefined)}
-                      className="rounded-md border border-green-300 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 hover:bg-green-100"
+                      className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
                     >
-                      Complete
+                      Done
                     </button>
-                    <button
-                      onClick={() => snoozeTickler(t, 1).catch(() => undefined)}
-                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                    <select
+                      defaultValue=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "1") snoozeTickler(t, 1).catch(() => undefined);
+                        else if (v === "7") snoozeTickler(t, 7).catch(() => undefined);
+                        else if (v === "delete") deleteTickler(t).catch(() => undefined);
+                        e.target.value = "";
+                      }}
+                      className="rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-600"
                     >
-                      +1d
-                    </button>
-                    <button
-                      onClick={() => snoozeTickler(t, 7).catch(() => undefined)}
-                      className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
-                    >
-                      +7d
-                    </button>
-                    <button
-                      onClick={() => deleteTickler(t).catch(() => undefined)}
-                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
-                    >
-                      Delete
-                    </button>
+                      <option value="" disabled>More…</option>
+                      <option value="1">Snooze +1 day</option>
+                      <option value="7">Snooze +7 days</option>
+                      <option value="delete">Delete</option>
+                    </select>
                   </div>
                 )}
               </div>

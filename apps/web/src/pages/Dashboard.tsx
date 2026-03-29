@@ -273,15 +273,12 @@ export function Dashboard(): JSX.Element {
             </div>
           )}
           {!loading.pipeline && pipeline && (
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600">
               {pipeline.stages.map((stage) => (
-                <div key={stage.status} className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: statusColors[stage.status] }} />
-                    <p className="font-semibold">{statusLabels[stage.status] ?? stage.status}</p>
-                  </div>
-                  <p className="mt-1">{stage.count} leads · {money.format(stage.totalValue)}</p>
-                </div>
+                <span key={stage.status} className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColors[stage.status] }} />
+                  {statusLabels[stage.status] ?? stage.status}: {stage.count}
+                </span>
               ))}
             </div>
           )}
@@ -417,32 +414,21 @@ export function Dashboard(): JSX.Element {
       </div>
 
       <SectionErrorBoundary title="leads going cold">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <h3 className="text-base font-semibold text-slate-900">Leads Going Cold</h3>
-          </div>
-          {loading.stale || !stale ? (
-            <div className="mt-3 h-40 animate-pulse rounded bg-slate-100" />
-          ) : stale.leads.length === 0 ? (
-            <EmptyState icon={Inbox} message="No stale leads. Great work keeping in touch!" />
-          ) : (
-            <div className="mt-3 space-y-2">
-              {stale.leads.map((lead) => (
-                <button
-                  key={lead.id}
-                  onClick={() => navigate(`/leads?leadId=${lead.id}`)}
-                  className="grid w-full gap-2 rounded-lg border border-slate-200 p-3 text-left text-sm transition-colors hover:bg-slate-50 md:grid-cols-4"
-                >
-                  <p className="font-medium text-slate-900">{lead.name}</p>
-                  <p className="text-slate-600">{lead.company ?? "No company"}</p>
-                  <p className="text-amber-600 font-medium">{lead.daysSinceLastTouch} days since last touch</p>
-                  <p className="text-slate-500">{lead.assignedRep}</p>
-                </button>
-              ))}
+        {!loading.stale && stale && stale.leads.length > 0 && (
+          <button
+            onClick={() => navigate("/leads?moreFilters=1")}
+            className="flex w-full items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left transition-colors hover:bg-amber-100"
+          >
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-900">{stale.leads.length} lead{stale.leads.length !== 1 ? "s" : ""} going cold</p>
+              <p className="mt-0.5 truncate text-xs text-amber-700">
+                {stale.leads.slice(0, 3).map((l) => l.name).join(", ")}{stale.leads.length > 3 ? ` +${stale.leads.length - 3} more` : ""}
+              </p>
             </div>
-          )}
-        </div>
+            <span className="shrink-0 text-xs font-medium text-amber-700">Review on Leads →</span>
+          </button>
+        )}
       </SectionErrorBoundary>
     </section>
   );

@@ -245,30 +245,35 @@ export function ImportLeads(): JSX.Element {
             ))}
           </div>
 
-          <div className="mt-4 max-h-48 overflow-auto rounded border border-slate-100 text-xs">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead>
-                <tr className="bg-slate-50">
-                  {preview.headers.map((h, i) => (
-                    <th key={i} className="px-2 py-1 text-left font-medium text-slate-700">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.sampleRows.map((row, ri) => (
-                  <tr key={ri} className="divide-x divide-slate-100">
-                    {row.map((cell, ci) => (
-                      <td key={ci} className="px-2 py-1 text-slate-600">
-                        {cell}
-                      </td>
+          <details className="mt-4">
+            <summary className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-800">
+              Preview data ({preview.sampleRows.length} rows)
+            </summary>
+            <div className="mt-2 max-h-48 overflow-auto rounded border border-slate-100 text-xs">
+              <table className="min-w-full divide-y divide-slate-100">
+                <thead>
+                  <tr className="bg-slate-50">
+                    {preview.headers.map((h, i) => (
+                      <th key={i} className="px-2 py-1 text-left font-medium text-slate-700">
+                        {h}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {preview.sampleRows.map((row, ri) => (
+                    <tr key={ri} className="divide-x divide-slate-100">
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="px-2 py-1 text-slate-600">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-700">Assigned officer (all imported leads)</label>
@@ -319,24 +324,23 @@ export function ImportLeads(): JSX.Element {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-800">Recent imports (you)</h3>
-        {jobs.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No imports yet.</p>
-        ) : (
-          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+      {jobs.length > 0 && (
+        <details className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+            Recent imports ({jobs.length})
+          </summary>
+          <ul className="divide-y divide-slate-100 px-4 pb-3 text-sm">
             {jobs.map((j) => (
               <li key={j.id} className="py-2">
                 <span className="font-medium text-slate-800">{j.originalFileName}</span>
                 <span className="text-slate-500">
-                  {" "}
-                  — {j.insertedCount} inserted · {new Date(j.createdAt).toLocaleString()}
+                  {" "}— {j.insertedCount} inserted · {new Date(j.createdAt).toLocaleString()}
                 </span>
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </details>
+      )}
     </section>
   );
 }

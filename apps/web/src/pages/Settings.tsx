@@ -155,56 +155,53 @@ export function Settings(): JSX.Element {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <h3 className="text-lg font-semibold text-slate-900">App Info</h3>
-        <div className="mt-3 space-y-2 text-sm text-slate-700">
-          <p>
-            <span className="font-semibold">App version:</span> 1.0.0-beta
-          </p>
-          <p>
-            <span className="font-semibold">Environment API URL:</span> {apiUrl}
-          </p>
-          <p>
-            <span className="font-semibold">Last email sync:</span>{" "}
-            {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : "Not synced yet"}
-          </p>
-          <p>
-            <span className="font-semibold">Database/API status:</span>{" "}
-            {healthStatus === "loading" ? "Checking..." : healthStatus === "connected" ? "Connected" : "Unavailable"}
-          </p>
+      <details className="rounded-xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">
+          Diagnostics & App Info
+          <span className="ml-2 inline-flex items-center gap-1.5 text-xs font-normal text-slate-500">
+            <span className={`h-2 w-2 rounded-full ${healthStatus === "connected" ? "bg-green-500" : healthStatus === "unavailable" ? "bg-red-500" : "bg-slate-300"}`} />
+            {healthStatus === "connected" ? "Connected" : healthStatus === "unavailable" ? "Unavailable" : "Checking…"}
+          </span>
+        </summary>
+        <div className="space-y-2 border-t border-slate-100 px-5 pb-5 pt-3 text-sm text-slate-700">
+          <p><span className="font-semibold">Version:</span> 1.0.0-beta</p>
+          <p><span className="font-semibold">API:</span> {apiUrl}</p>
+          <p><span className="font-semibold">Last email sync:</span> {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : "Not synced yet"}</p>
         </div>
-      </div>
+      </details>
 
       {role === USER_ROLES.ADMIN && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-lg font-semibold text-slate-900">Admin</h3>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link to="/automations" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-              Open Automations
-            </Link>
-            <button
-              onClick={() => runEmailSync().catch(() => undefined)}
-              disabled={syncing}
-              className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              {syncing ? "Running..." : "Run Email Sync Now"}
-            </button>
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">Admin Controls</summary>
+          <div className="border-t border-slate-100 px-5 pb-5 pt-3">
+            <div className="flex flex-wrap gap-3">
+              <Link to="/automations" className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                Open Automations
+              </Link>
+              <button
+                onClick={() => runEmailSync().catch(() => undefined)}
+                disabled={syncing}
+                className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {syncing ? "Running..." : "Run Email Sync Now"}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-md bg-slate-50 p-3 text-sm">
+                <p className="text-slate-500">Users</p>
+                <p className="text-lg font-semibold text-slate-900">{adminStats?.users ?? "—"}</p>
+              </div>
+              <div className="rounded-md bg-slate-50 p-3 text-sm">
+                <p className="text-slate-500">Leads</p>
+                <p className="text-lg font-semibold text-slate-900">{adminStats?.leads ?? "—"}</p>
+              </div>
+              <div className="rounded-md bg-slate-50 p-3 text-sm">
+                <p className="text-slate-500">Activities</p>
+                <p className="text-lg font-semibold text-slate-900">{adminStats?.activities ?? "—"}</p>
+              </div>
+            </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-md bg-slate-50 p-3 text-sm">
-              <p className="text-slate-500">Users</p>
-              <p className="text-lg font-semibold text-slate-900">{adminStats?.users ?? "—"}</p>
-            </div>
-            <div className="rounded-md bg-slate-50 p-3 text-sm">
-              <p className="text-slate-500">Leads</p>
-              <p className="text-lg font-semibold text-slate-900">{adminStats?.leads ?? "—"}</p>
-            </div>
-            <div className="rounded-md bg-slate-50 p-3 text-sm">
-              <p className="text-slate-500">Activities</p>
-              <p className="text-lg font-semibold text-slate-900">{adminStats?.activities ?? "—"}</p>
-            </div>
-          </div>
-        </div>
+        </details>
       )}
     </section>
   );

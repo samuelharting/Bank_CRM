@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Mail, Sparkles, Target } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, FileText, Mail, MoreHorizontal, Sparkles, Target, X } from "lucide-react";
 import { apiFetch, apiFetchBlob } from "../lib/api";
 import {
   ACTIVITY_TYPES,
@@ -107,6 +107,8 @@ const statusClasses: Record<LeadStatus, string> = {
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
+const LEAD_STATUS_URL_SET = new Set<string>(LEAD_STATUSES);
+
 const formatBytes = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -116,7 +118,10 @@ const formatBytes = (bytes: number): string => {
 export function Leads(): JSX.Element {
   const { role } = useAuth();
   const readOnly = isReadOnlyRole(role);
+  const [searchParams] = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
+  const headerActionsRef = useRef<HTMLDivElement>(null);
+  const detailActionsRef = useRef<HTMLDivElement>(null);
   const leadsLoadAbortRef = useRef<AbortController | null>(null);
   const leadsLoadGenRef = useRef(0);
   const [leads, setLeads] = useState<ApiLead[]>([]);
@@ -137,6 +142,9 @@ export function Leads(): JSX.Element {
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [followUpStart, setFollowUpStart] = useState("");
   const [followUpEnd, setFollowUpEnd] = useState("");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [headerActionsOpen, setHeaderActionsOpen] = useState(false);
+  const [detailActionsOpen, setDetailActionsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<ApiLead | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm());
@@ -272,13 +280,48 @@ export function Leads(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const leadId = params.get("leadId");
+    const leadId = searchParams.get("leadId");
     if (leadId) {
       setDetailLeadId(leadId);
       loadLeadDetail(leadId).catch(() => undefined);
     }
-  }, [loadLeadDetail]);
+    const status = searchParams.get("status");
+    if (status === "ALL" || (status && LEAD_STATUS_URL_SET.has(status))) {
+      setStatusFilter(status);
+    }
+    if (searchParams.get("moreFilters") === "1" || searchParams.get("expandFilters") === "1") {
+      setShowMoreFilters(true);
+    }
+  }, [searchParams, loadLeadDetail]);
+
+  useEffect(() => {
+    if (!headerActionsOpen && !detailActionsOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (headerActionsOpen && headerActionsRef.current && !headerActionsRef.current.contains(target)) {
+        setHeaderActionsOpen(false);
+      }
+      if (detailActionsOpen && detailActionsRef.current && !detailActionsRef.current.contains(target)) {
+        setDetailActionsOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHeaderActionsOpen(false);
+        setDetailActionsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [headerActionsOpen, detailActionsOpen]);
+
+  useEffect(() => {
+    if (!detailLeadId) setDetailActionsOpen(false);
+  }, [detailLeadId]);
 
   const openAddPanel = useCallback((): void => {
     if (readOnly) return;
@@ -542,7 +585,10 @@ export function Leads(): JSX.Element {
     link.download = `deerwood-leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
+    setHeaderActionsOpen(false);
   };
+
+  const activeFilterCount = [assignedFilter !== "ALL", branchFilter !== "ALL", sourceFilter !== "ALL", followUpStart, followUpEnd].filter(Boolean).length;
 
   return (
     <section className="space-y-4">
@@ -551,68 +597,49 @@ export function Leads(): JSX.Element {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Leads</h2>
         <div className="flex items-center gap-2">
-          {(role === USER_ROLES.COMPLIANCE_READONLY || role === USER_ROLES.ADMIN || role === USER_ROLES.EXECUTIVE) && (
-            <button onClick={exportCsv} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              Export
+          {!readOnly && (
+            <button onClick={openAddPanel} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              Add Lead
             </button>
           )}
-          {!readOnly && (
-            <>
-              <Link
-                to="/import/leads"
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          {(role === USER_ROLES.COMPLIANCE_READONLY || role === USER_ROLES.ADMIN || role === USER_ROLES.EXECUTIVE || !readOnly) && (
+            <div ref={headerActionsRef} className="relative">
+              <button
+                type="button"
+                aria-expanded={headerActionsOpen}
+                aria-haspopup="menu"
+                aria-label="More lead actions"
+                onClick={() => setHeaderActionsOpen((open) => !open)}
+                className="rounded-md border border-slate-300 p-2 text-slate-600 hover:bg-slate-50"
               >
-                Import Excel
-              </Link>
-              <button onClick={openAddPanel} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                Add Lead
+                <MoreHorizontal className="h-4 w-4" />
               </button>
-            </>
+              {headerActionsOpen && (
+                <div role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  {(role === USER_ROLES.COMPLIANCE_READONLY || role === USER_ROLES.ADMIN || role === USER_ROLES.EXECUTIVE) && (
+                    <button type="button" role="menuitem" onClick={exportCsv} className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                      Export CSV
+                    </button>
+                  )}
+                  {!readOnly && (
+                    <Link
+                      to="/import/leads"
+                      role="menuitem"
+                      onClick={() => setHeaderActionsOpen(false)}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      Import Excel
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-5">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            <option value="ALL">Status: All</option>
-            {LEAD_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-          <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            <option value="ALL">Assigned Rep: All</option>
-            {sortedUsers.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.displayName}
-              </option>
-            ))}
-          </select>
-          <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            <option value="ALL">Branch: All</option>
-            {BRANCHES.map((branch) => (
-              <option key={branch} value={branch}>
-                {branch}
-              </option>
-            ))}
-          </select>
-          <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            <option value="ALL">Source: All</option>
-            {LEAD_SOURCES.map((source) => (
-              <option key={source} value={source}>
-                {source}
-              </option>
-            ))}
-          </select>
-          <div className="grid grid-cols-2 gap-2">
-            <input type="date" value={followUpStart} onChange={(e) => setFollowUpStart(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-            <input type="date" value={followUpEnd} onChange={(e) => setFollowUpEnd(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-          </div>
-        </div>
-
-        <div className="mt-3 flex gap-2">
+        <div className="flex gap-2">
           <div className="relative flex-1">
             <input
               ref={searchRef}
@@ -621,7 +648,7 @@ export function Leads(): JSX.Element {
               placeholder={
                 aiMode
                   ? "Ask in plain language, e.g. dormant referral leads assigned to John"
-                  : "Search name, company, email, phone, industry code, city, ZIP"
+                  : "Search name, company, email, phone..."
               }
               className="w-full rounded-md border border-gray-300 px-3 py-2 pr-12 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -635,10 +662,57 @@ export function Leads(): JSX.Element {
               ✨ AI
             </button>
           </div>
-          <button onClick={() => { setPage(1); loadLeads().catch(() => undefined); }} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Search
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <option value="ALL">All statuses</option>
+            {LEAD_STATUSES.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowMoreFilters((prev) => !prev)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+              activeFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Filters{activeFilterCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] text-white">{activeFilterCount}</span>}
+            {showMoreFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
         </div>
+
+        {showMoreFilters && (
+          <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 md:grid-cols-5">
+            <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option value="ALL">Assigned Rep: All</option>
+              {sortedUsers.map((user) => (
+                <option key={user.id} value={user.id}>{user.displayName}</option>
+              ))}
+            </select>
+            <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option value="ALL">Branch: All</option>
+              {BRANCHES.map((branch) => (
+                <option key={branch} value={branch}>{branch}</option>
+              ))}
+            </select>
+            <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option value="ALL">Source: All</option>
+              {LEAD_SOURCES.map((source) => (
+                <option key={source} value={source}>{source}</option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={followUpStart} onChange={(e) => setFollowUpStart(e.target.value)} placeholder="Follow-up from" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <input type="date" value={followUpEnd} onChange={(e) => setFollowUpEnd(e.target.value)} placeholder="Follow-up to" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setAssignedFilter("ALL"); setBranchFilter("ALL"); setSourceFilter("ALL"); setFollowUpStart(""); setFollowUpEnd(""); }}
+                className="inline-flex items-center gap-1 rounded-md text-sm text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-3.5 w-3.5" /> Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {aiExplanation && (
@@ -958,21 +1032,45 @@ export function Leads(): JSX.Element {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClasses[detailLead.status]}`}>{formatLeadStatus(detailLead.status)}</span>
+                      {!readOnly && (
+                        <button onClick={() => openEditPanel(detailLead)} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          Edit
+                        </button>
+                      )}
                       <Link
                         to={`/prep?leadId=${detailLead.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 transition-all"
                       >
-                        <Sparkles className="h-4 w-4" /> AI Prep Brief
+                        <Sparkles className="h-4 w-4" /> AI Prep
                       </Link>
                       {!readOnly && (
-                        <>
-                          <button onClick={() => openEditPanel(detailLead)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                            Edit
+                        <div ref={detailActionsRef} className="relative">
+                          <button
+                            type="button"
+                            aria-expanded={detailActionsOpen}
+                            aria-haspopup="menu"
+                            aria-label="More actions for this lead"
+                            onClick={() => setDetailActionsOpen((open) => !open)}
+                            className="rounded-md border border-slate-300 p-2 text-slate-500 hover:bg-slate-50"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
                           </button>
-                          <button onClick={() => archiveLead(detailLead).catch(() => undefined)} className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            Dormant
-                          </button>
-                        </>
+                          {detailActionsOpen && (
+                            <div role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setDetailActionsOpen(false);
+                                  archiveLead(detailLead).catch(() => undefined);
+                                }}
+                                className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Move to Dormant
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1007,34 +1105,28 @@ export function Leads(): JSX.Element {
                 <div className="flex-1 overflow-y-auto p-6">
                   {detailTab === "activity" && (
                     <div className="space-y-3">
-                      <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                        <span className="font-semibold">Contact history:</span> Each entry below is a logged touchpoint. Use{" "}
-                        <strong>CALL</strong> (phone), <strong>EMAIL</strong>, or <strong>MEETING</strong> (in person). Add new entries from{" "}
-                        <strong>Edit</strong> — put what was discussed in the description.
-                      </p>
-                      <div className="mb-2 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                        <div>
-                          <p className="text-xs text-slate-500">
-                            Last synced:{" "}
-                            {syncStatus?.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString() : "Not synced yet"}
-                          </p>
-                          <label className="mt-1 inline-flex items-center gap-2 text-xs text-slate-600">
-                            <input
-                              type="checkbox"
-                              checked={activityEmailOnly}
-                              onChange={(event) => setActivityEmailOnly(event.target.checked)}
-                            />
-                            Email only
-                          </label>
+                      <div className="flex items-center justify-between">
+                        <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                          <input
+                            type="checkbox"
+                            checked={activityEmailOnly}
+                            onChange={(event) => setActivityEmailOnly(event.target.checked)}
+                          />
+                          Email only
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400">
+                            {syncStatus?.lastSyncAt ? `Synced ${new Date(syncStatus.lastSyncAt).toLocaleDateString()}` : "Not synced"}
+                          </span>
+                          {!readOnly && (
+                            <button
+                              onClick={() => runEmailSyncNow().catch(() => undefined)}
+                              className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                              Sync
+                            </button>
+                          )}
                         </div>
-                        {!readOnly && (
-                          <button
-                            onClick={() => runEmailSyncNow().catch(() => undefined)}
-                            className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                          >
-                            Sync now
-                          </button>
-                        )}
                       </div>
                       {(() => {
                         const acts =
@@ -1130,9 +1222,6 @@ export function Leads(): JSX.Element {
                   )}
                   {detailTab === "documents" && (
                     <div className="space-y-4">
-                      <p className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                        Store tax returns and financial statements here. Files are restricted by your role the same as this lead. In production, files live in secure bank storage (Azure Blob).
-                      </p>
                       {!readOnly && (
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                           <h4 className="text-sm font-semibold text-slate-800">Upload</h4>

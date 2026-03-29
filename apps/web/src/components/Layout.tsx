@@ -10,7 +10,10 @@ import { Activity, BarChart3, Clock, FileSpreadsheet, LayoutDashboard, MapPin, M
 import { isInTeams, openInBrowser } from "../lib/teams";
 import { isReadOnlyRole } from "../lib/roles";
 
-const baseNavItems = [
+interface NavItem { to: string; label: string; icon: typeof LayoutDashboard }
+interface NavGroup { label: string; items: NavItem[] }
+
+const coreNavItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/leads", label: "Leads", icon: Target },
   { to: "/contacts", label: "Contacts", icon: Users },
@@ -27,21 +30,22 @@ export function Layout(): JSX.Element {
   const [collapsed, setCollapsed] = useState(isInTeams());
   const teamsMode = isInTeams();
 
-  const writeNavItems = !isReadOnlyRole(role)
-    ? [
-        { to: "/ticklers", label: "Ticklers", icon: Clock },
-        { to: "/map", label: "Map", icon: MapPin },
-        { to: "/import/leads", label: "Import", icon: FileSpreadsheet },
-      ]
-    : [{ to: "/map", label: "Map", icon: MapPin }];
-  const managerNavItems =
-    role === USER_ROLES.BRANCH_MANAGER || role === USER_ROLES.EXECUTIVE || role === USER_ROLES.ADMIN || role === USER_ROLES.COMPLIANCE_READONLY
-      ? [{ to: "/reports", label: "Reports", icon: BarChart3 }]
-      : [];
-  const navItems =
-    role === USER_ROLES.ADMIN
-      ? [...baseNavItems, ...writeNavItems, ...managerNavItems, { to: "/automations", label: "Automations", icon: Zap }]
-      : [...baseNavItems, ...writeNavItems, ...managerNavItems];
+  const toolsItems: NavItem[] = [];
+  if (!isReadOnlyRole(role)) toolsItems.push({ to: "/ticklers", label: "Ticklers", icon: Clock });
+  toolsItems.push({ to: "/map", label: "Map", icon: MapPin });
+  if (!isReadOnlyRole(role)) toolsItems.push({ to: "/import/leads", label: "Import", icon: FileSpreadsheet });
+
+  const adminItems: NavItem[] = [];
+  if (role === USER_ROLES.BRANCH_MANAGER || role === USER_ROLES.EXECUTIVE || role === USER_ROLES.ADMIN || role === USER_ROLES.COMPLIANCE_READONLY) {
+    adminItems.push({ to: "/reports", label: "Reports", icon: BarChart3 });
+  }
+  if (role === USER_ROLES.ADMIN) {
+    adminItems.push({ to: "/automations", label: "Automations", icon: Zap });
+  }
+
+  const navGroups: NavGroup[] = [{ label: "", items: coreNavItems }];
+  if (toolsItems.length > 0) navGroups.push({ label: "Tools", items: toolsItems });
+  if (adminItems.length > 0) navGroups.push({ label: "Reporting", items: adminItems });
 
   useEffect(() => {
     const loadCount = async (): Promise<void> => {
@@ -97,19 +101,29 @@ export function Layout(): JSX.Element {
             </div>
           )}
         </div>
-        <nav className="mt-6 space-y-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setMobileSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-600/90 text-white shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`
-              }
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && item.label}
-            </NavLink>
+        <nav className="mt-6 space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              {group.label && !collapsed && (
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">{group.label}</p>
+              )}
+              {group.label && collapsed && <div className="mx-3 mb-1 border-t border-slate-700" />}
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className={({ isActive }) =>
+                      `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-600/90 text-white shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`
+                    }
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="mt-4 border-t border-slate-800 pt-4">
