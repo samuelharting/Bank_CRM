@@ -1,0 +1,75 @@
+import type { DemoStep } from "../types";
+
+export const ticklersSteps: DemoStep[] = [
+  {
+    id: "ticklers-intro",
+    module: "ticklers",
+    title: "Reminder System",
+    body: "Ticklers keep follow-up work from slipping through the cracks. We are still on the same lead, now looking at the reminder layer that turns a conversation into a next step.",
+    beforeShow: [
+      { type: "dispatch", value: "crm-demo-navigate-ticklers" },
+      { type: "waitFor", target: "[data-demo='ticklers-lead-context']", timeoutMs: 12000 },
+    ],
+  },
+  {
+    id: "ticklers-context",
+    module: "ticklers",
+    title: "Lead-Specific Reminder Context",
+    body: "The context banner confirms the reminder list is scoped to the same relationship. That removes the common 'where did my reminder go' problem after saving.",
+    target: "ticklers-lead-context",
+    placement: "bottom",
+  },
+  {
+    id: "ticklers-overview",
+    module: "ticklers",
+    title: "Work By Due Date",
+    body: "Ticklers are organized into overdue, today, upcoming, and completed views. A rep can start with what is urgent, then look ahead to plan the next few touches.",
+    target: "ticklers-overview",
+    targetAttr: "data-tour",
+    placement: "top",
+  },
+  {
+    id: "ticklers-first-item",
+    module: "ticklers",
+    title: "Existing Reminder Trail",
+    body: "This card shows the actual follow-up item for the lead. From here the rep can review the note, snooze it, complete it, or open the lead and continue working.",
+    target: "ticklers-first-item",
+    placement: "top",
+    skipIf: "[data-demo='ticklers-first-item']",
+  },
+  {
+    id: "ticklers-create-btn",
+    module: "ticklers",
+    title: "Create The Next Follow-Up",
+    body: "When a banker leaves a call, this is the habit to build: set the next reminder before moving on. The create action is placed right at the top for that reason.",
+    target: "ticklers-create",
+    placement: "top",
+    skipIf: "[data-demo='ticklers-create']",
+  },
+  {
+    id: "ticklers-create-form",
+    module: "ticklers",
+    title: "Reminder Form",
+    body: "The reminder form ties the follow-up to a lead, due date, and optional recurrence. Strong validation keeps the workflow clean so reps always know what is scheduled next.",
+    target: "ticklers-form",
+    placement: "top",
+    skipIf: "[data-demo='ticklers-create']",
+    beforeShow: [
+      { type: "click", target: "[data-demo='ticklers-create']" },
+      { type: "waitFor", target: "[data-demo='ticklers-form']", timeoutMs: 8000 },
+    ],
+  },
+  {
+    id: "ticklers-nav-map",
+    module: "ticklers",
+    title: "Core Rep Workflow Complete",
+    body: "That covers the daily rep loop: work the queue, review the lead, capture the touchpoint, track the relationship team, prepare for the meeting, and schedule the next follow-up. We'll continue to the map and any role-specific tools after this.",
+    target: "nav-map",
+    targetAttr: "data-tour",
+    placement: "right",
+    beforeShow: [
+      { type: "dispatch", value: "crm-tour-open-sidebar" },
+      { type: "wait", value: "300" },
+    ],
+  },
+];

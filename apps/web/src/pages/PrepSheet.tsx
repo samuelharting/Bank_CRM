@@ -19,6 +19,34 @@ interface AiBriefResponse {
   leadName: string;
   brief: string;
   generatedAt: string;
+  usedFallback?: boolean;
+  explanation?: string;
+  usedWebSearch?: boolean;
+  webSearchQuery?: string | null;
+  webSources?: Array<{
+    title: string;
+    content: string;
+    link: string;
+    refer?: string;
+    publishDate?: string;
+  }>;
+}
+
+interface DemoStorageState {
+  paused?: boolean;
+  completedAt?: string | null;
+}
+
+function readActiveDemoState(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem("crm-demo");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as DemoStorageState;
+    return parsed.paused === false && parsed.completedAt == null;
+  } catch {
+    return false;
+  }
 }
 
 function MarkdownBrief({ text }: { text: string }): JSX.Element {
@@ -73,6 +101,8 @@ export function PrepSheet(): JSX.Element {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [aiBrief, setAiBrief] = useState<AiBriefResponse | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiLoadingStartedAt, setAiLoadingStartedAt] = useState<string | null>(null);
+  const [demoActive, setDemoActive] = useState<boolean>(() => readActiveDemoState());
 
   const addToast = useCallback((type: ToastMessage["type"], message: string) => {
     setToasts((prev) => [...prev, { id: Date.now() + Math.random(), type, message }]);
@@ -99,20 +129,37 @@ export function PrepSheet(): JSX.Element {
     })();
   }, [addToast, leadId]);
 
+  useEffect(() => {
+    const syncDemoState = (event: Event) => {
+      const detail = (event as CustomEvent<boolean>).detail;
+      setDemoActive(typeof detail === "boolean" ? detail : readActiveDemoState());
+    };
+
+    window.addEventListener("crm-demo-active", syncDemoState);
+    return () => window.removeEventListener("crm-demo-active", syncDemoState);
+  }, []);
+
   const generateBrief = useCallback(async () => {
     if (!leadId) return;
     setAiLoading(true);
-    setAiBrief(null);
+    setAiLoadingStartedAt(new Date().toISOString());
     try {
       const data = await apiFetch<AiBriefResponse>(`/leads/${leadId}/ai-brief`, { method: "POST" });
       setAiBrief(data);
-      addToast("success", "AI brief generated");
+      if (data.usedFallback) {
+        if (!demoActive) {
+          addToast("warning", data.explanation ?? "Generated a CRM-based fallback brief");
+        }
+      } else {
+        addToast("success", "AI brief generated");
+      }
     } catch (e) {
       addToast("error", e instanceof Error ? e.message : "AI brief generation failed");
     } finally {
       setAiLoading(false);
+      setAiLoadingStartedAt(null);
     }
-  }, [addToast, leadId]);
+  }, [addToast, demoActive, leadId]);
 
   if (!leadId) {
     return (
@@ -153,26 +200,59 @@ export function PrepSheet(): JSX.Element {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link to="/leads" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+        <Link data-demo="prep-back-to-lead" to={`/leads?leadId=${lead.id}`} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
           <ArrowLeft className="h-4 w-4" /> Back to Leads
         </Link>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link data-demo="prep-open-activities" to={`/activities?leadId=${lead.id}`} className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Activity
+          </Link>
+          <Link data-demo="prep-open-ticklers" to={`/ticklers?leadId=${lead.id}`} className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Ticklers
+          </Link>
           <button
-            onClick={generateBrief}
-            disabled={aiLoading}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 transition-all"
+            data-demo="prep-generate"
+            type="button"
+            onClick={() => {
+              if (aiLoading) return;
+              void generateBrief();
+            }}
+            aria-disabled={aiLoading}
+            aria-busy={aiLoading}
+            className={`inline-flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-semibold shadow-md transition-colors ${
+              aiLoading
+                ? "cursor-wait border-blue-700 bg-blue-700 text-white"
+                : "border-blue-700 bg-blue-700 text-white hover:bg-blue-800"
+            }`}
           >
             {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {aiLoading ? "Generating Brief..." : "Generate AI Brief"}
           </button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button data-demo="prep-print" onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
             <Printer className="h-4 w-4" /> Print
           </button>
         </div>
       </div>
 
+      {aiLoading && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 shadow-sm">
+          <div className="flex items-center gap-2 font-medium">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Generating a prep brief
+          </div>
+          <p className="mt-1 text-blue-800">
+            Pulling CRM context and requesting an AI summary now. If the provider is busy, this page will fall back to a CRM-based brief instead of failing.
+          </p>
+          {aiLoadingStartedAt && (
+            <p className="mt-1 text-xs text-blue-700">
+              Started {new Date(aiLoadingStartedAt).toLocaleTimeString()}.
+            </p>
+          )}
+        </div>
+      )}
+
       {aiBrief && (
-        <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm print:border print:border-slate-300 print:bg-white">
+        <div data-tour="prep-brief" className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm print:border print:border-slate-300 print:bg-white">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-blue-600" />
@@ -183,14 +263,55 @@ export function PrepSheet(): JSX.Element {
                 Generated {new Date(aiBrief.generatedAt).toLocaleString()}
               </span>
               <button
-                onClick={generateBrief}
-                disabled={aiLoading}
-                className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 print:hidden"
+                type="button"
+                onClick={() => {
+                  if (aiLoading) return;
+                  void generateBrief();
+                }}
+                aria-disabled={aiLoading}
+                className={`inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs font-medium print:hidden ${
+                  aiLoading
+                    ? "cursor-wait border-blue-300 bg-blue-100 text-blue-700"
+                    : "border-blue-300 bg-white text-blue-700 hover:bg-blue-50"
+                }`}
               >
                 <RefreshCw className={`h-3 w-3 ${aiLoading ? "animate-spin" : ""}`} /> Regenerate
               </button>
             </div>
           </div>
+          {aiBrief.usedFallback && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {aiBrief.explanation ?? "The live AI provider was unavailable, so this brief was generated from CRM data only."}
+            </div>
+          )}
+          {aiBrief.webSearchQuery && (
+            <div className="mb-4 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">
+                {aiBrief.usedWebSearch && (aiBrief.webSources?.length ?? 0) > 0
+                  ? "Public web context included"
+                  : "Public web search attempted"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Search query: <span className="font-medium text-slate-700">{aiBrief.webSearchQuery}</span>
+              </p>
+              {aiBrief.usedWebSearch && (aiBrief.webSources?.length ?? 0) > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {aiBrief.webSources!.slice(0, 4).map((source) => (
+                    <li key={source.link} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                      <a href={source.link} target="_blank" rel="noreferrer" className="font-medium text-blue-700 hover:underline">
+                        {source.title}
+                      </a>
+                      {source.content && <p className="mt-1 text-xs text-slate-600">{source.content}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-slate-600">
+                  No clear public matches were attached to this brief. That is expected for fictional leads and can also happen when a real prospect has a limited public footprint.
+                </p>
+              )}
+            </div>
+          )}
           <MarkdownBrief text={aiBrief.brief} />
         </div>
       )}
@@ -200,6 +321,9 @@ export function PrepSheet(): JSX.Element {
         <h1 className="mt-1 text-2xl font-bold text-slate-900">{lead.firstName} {lead.lastName}</h1>
         {lead.company && <p className="text-lg text-slate-700">{lead.company}</p>}
         <p className="mt-1 text-sm text-slate-500">Prepared {new Date().toLocaleDateString()}</p>
+        <div data-demo="prep-workflow-note" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 print:hidden">
+          Review the brief, then return to the lead record to log the conversation and set the next follow-up.
+        </div>
       </header>
 
       <div className="grid gap-6 sm:grid-cols-2">

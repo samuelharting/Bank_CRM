@@ -21,6 +21,7 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "devDependencies": {
+    "puppeteer": "^24.40.0",
     "ts-node": "^10.9.2"
   },
   "dependencies": {

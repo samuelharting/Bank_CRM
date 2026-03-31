@@ -168,7 +168,7 @@ export function Reports(): JSX.Element {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <h2 className="text-2xl font-semibold text-slate-900">Reports</h2>
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      <div data-demo="reports-tabs" className="flex flex-wrap gap-1 border-b border-slate-200">
         {REPORT_TABS.map((r) => (
           <button
             key={r.key}
@@ -184,7 +184,7 @@ export function Reports(): JSX.Element {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-demo="reports-filters" className="flex flex-wrap items-center gap-3">
         <input
           value={branch}
           onChange={(e) => setBranch(e.target.value)}
@@ -201,10 +201,11 @@ export function Reports(): JSX.Element {
       )}
 
       {tab === "pipeline" && !loading && (
-        <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+        <div data-demo="reports-content" className="overflow-auto rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between px-4 py-3">
             <p className="text-sm font-semibold text-slate-800">Active pipeline by assigned officer</p>
             <button
+              data-demo="reports-download"
               onClick={() =>
                 downloadCsv(
                   "pipeline-by-officer.csv",

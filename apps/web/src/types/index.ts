@@ -27,6 +27,20 @@ export const LEAD_STATUSES = [
 
 export const LEAD_SOURCES = ["REFERRAL", "WALK_IN", "PHONE", "WEBSITE", "EVENT", "EXISTING_CLIENT", "OTHER"] as const;
 
+export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
+  REFERRAL: "Referral",
+  WALK_IN: "Walk-in",
+  PHONE: "Phone inquiry",
+  WEBSITE: "Website",
+  EVENT: "Event",
+  EXISTING_CLIENT: "Existing client",
+  OTHER: "Other",
+};
+
+export function formatLeadSource(source: LeadSource): string {
+  return LEAD_SOURCE_LABELS[source];
+}
+
 export const ACTIVITY_TYPES = ["CALL", "EMAIL", "MEETING", "NOTE", "FOLLOW_UP"] as const;
 
 export const LEAD_DOCUMENT_CATEGORIES = ["TAX_RETURN", "FINANCIAL", "OTHER"] as const;

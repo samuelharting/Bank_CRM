@@ -4,8 +4,17 @@
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { config } from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootEnv = path.resolve(__dirname, "../../../../.env");
-config({ path: rootEnv });
+const envCandidates = [
+  path.resolve(__dirname, "../../../.env"),
+  path.resolve(__dirname, "../../../../.env"),
+];
+
+const rootEnv = envCandidates.find((candidate) => existsSync(candidate));
+
+if (rootEnv) {
+  config({ path: rootEnv });
+}

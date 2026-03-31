@@ -3,6 +3,12 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { TourProvider } from "./tour/TourProvider";
+import { TourOverlay } from "./tour/TourOverlay";
+import { DemoProvider } from "./demo/DemoProvider";
+import { DemoOverlay } from "./demo/DemoOverlay";
+
+const DEMO_ENABLED = import.meta.env.VITE_DEMO_MODE === "true";
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Leads = lazy(() => import("./pages/Leads").then((m) => ({ default: m.Leads })));
 const Contacts = lazy(() => import("./pages/Contacts").then((m) => ({ default: m.Contacts })));
@@ -19,6 +25,7 @@ function App(): JSX.Element {
   const navigate = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [demoToast, setDemoToast] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -63,6 +70,16 @@ function App(): JSX.Element {
     return () => window.removeEventListener("crm-api-error", onApiError);
   }, []);
 
+  useEffect(() => {
+    const onDemoToast = (event: Event) => {
+      const { message } = (event as CustomEvent<{ message: string; type: string }>).detail;
+      setDemoToast(message);
+      window.setTimeout(() => setDemoToast(null), 3500);
+    };
+    window.addEventListener("crm-demo-toast", onDemoToast);
+    return () => window.removeEventListener("crm-demo-toast", onDemoToast);
+  }, []);
+
   return (
     <>
       <Suspense fallback={
@@ -79,7 +96,20 @@ function App(): JSX.Element {
             path="/"
             element={
               <ProtectedRoute>
-                <Layout />
+                <TourProvider>
+                  {DEMO_ENABLED ? (
+                    <DemoProvider>
+                      <Layout />
+                      <TourOverlay />
+                      <DemoOverlay />
+                    </DemoProvider>
+                  ) : (
+                    <>
+                      <Layout />
+                      <TourOverlay />
+                    </>
+                  )}
+                </TourProvider>
               </ProtectedRoute>
             }
           >
@@ -115,6 +145,11 @@ function App(): JSX.Element {
       {globalError && (
         <div className="fixed bottom-4 right-4 z-[90] rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow">
           {globalError}
+        </div>
+      )}
+      {demoToast && (
+        <div className="fixed bottom-4 right-4 z-[130] rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 shadow">
+          {demoToast}
         </div>
       )}
     </>

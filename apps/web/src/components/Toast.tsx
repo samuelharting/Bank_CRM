@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export interface ToastMessage {
   id: number;
-  type: "success" | "error";
+  type: "success" | "error" | "warning";
   message: string;
 }
 
@@ -30,7 +30,11 @@ export function ToastContainer({ toasts, onDismiss }: ToastProps): JSX.Element {
         <div
           key={toast.id}
           className={`pointer-events-auto rounded-lg border px-4 py-3 shadow-md ${
-            toast.type === "success" ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"
+            toast.type === "success"
+              ? "border-green-200 bg-green-50 text-green-800"
+              : toast.type === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-red-200 bg-red-50 text-red-800"
           }`}
         >
           <p className="text-sm font-medium">{toast.message}</p>

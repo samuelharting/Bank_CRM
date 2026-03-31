@@ -198,11 +198,31 @@ export function Dashboard(): JSX.Element {
     [stats],
   );
 
+  const openLeadWorkspace = useCallback(
+    (leadId: string) => {
+      (window as unknown as Record<string, string>).__demoLeadId = leadId;
+      navigate(`/leads?leadId=${leadId}`);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    const openFirstFollowUp = () => {
+      const leadId = followUps?.leads[0]?.id ?? feed?.activities[0]?.lead.id;
+      if (leadId) {
+        openLeadWorkspace(leadId);
+      }
+    };
+    window.addEventListener("crm-demo-open-dashboard-followup", openFirstFollowUp);
+    return () => window.removeEventListener("crm-demo-open-dashboard-followup", openFirstFollowUp);
+  }, [feed, followUps, openLeadWorkspace]);
+
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Dashboard</h2>
         <select
+          data-demo="dashboard-scope"
           value={scope}
           onChange={(e) => setScope(e.target.value as DateScope)}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -214,7 +234,7 @@ export function Dashboard(): JSX.Element {
       </div>
 
       <SectionErrorBoundary title="KPI cards">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div data-tour="dashboard-stats" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {loading.stats || !stats
             ? Array.from({ length: 4 }).map((_, idx) => <div key={idx} className="h-32 animate-pulse rounded-xl border border-slate-200 bg-white" />)
             : cards.map((card) => {
@@ -222,7 +242,7 @@ export function Dashboard(): JSX.Element {
                 const trend = card.data.current - card.data.previousMonth;
                 const trendPositive = trend >= 0;
                 return (
-                  <div key={card.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div key={card.title} {...(card.title === "Total Active Leads" ? { "data-demo": "dashboard-kpi-active" } : {})} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-start justify-between">
                       <p className="text-sm font-medium text-slate-500">{card.title}</p>
                       <div className="rounded-lg bg-slate-100 p-2">
@@ -247,7 +267,7 @@ export function Dashboard(): JSX.Element {
       </SectionErrorBoundary>
 
       <SectionErrorBoundary title="pipeline chart">
-        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
+        <div data-tour="dashboard-pipeline" className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
           <h3 className="text-base font-semibold text-slate-900">Pipeline Funnel</h3>
           {loading.pipeline || !pipeline ? (
             <div className="mt-3 h-80 animate-pulse rounded-lg bg-slate-100" />
@@ -285,12 +305,24 @@ export function Dashboard(): JSX.Element {
         </div>
       </SectionErrorBoundary>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+      <div data-tour="dashboard-followups" className="grid min-w-0 gap-5 xl:grid-cols-2">
         <SectionErrorBoundary title={role === USER_ROLES.SALES_REP ? "follow-ups" : "leaderboard"}>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             {role === USER_ROLES.SALES_REP ? (
               <>
-                <h3 className="text-base font-semibold text-slate-900">Upcoming Follow-Ups</h3>
+                <div data-demo="dashboard-work-queue" className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Today's Work Queue</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Start here to see which customers or prospects need your next touch.
+                    </p>
+                  </div>
+                  {!loading.followUps && followUps && followUps.leads.length > 0 && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      {followUps.leads.length} live follow-up{followUps.leads.length === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
                 {loading.followUps || !followUps ? (
                   <div className="mt-3 h-52 animate-pulse rounded bg-slate-100" />
                 ) : (
@@ -298,8 +330,13 @@ export function Dashboard(): JSX.Element {
                     {followUps.leads.length === 0 ? (
                       <EmptyState icon={Inbox} message="No follow-ups scheduled. You're all caught up!" />
                     ) : (
-                      followUps.leads.map((lead) => (
-                        <button key={lead.id} onClick={() => navigate(`/leads?leadId=${lead.id}`)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50">
+                      followUps.leads.map((lead, index) => (
+                        <button
+                          key={lead.id}
+                          {...(index === 0 ? { "data-demo": "dashboard-first-followup" } : {})}
+                          onClick={() => openLeadWorkspace(lead.id)}
+                          className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                        >
                           <div>
                             <p className="text-sm font-medium text-slate-900">
                               {lead.firstName} {lead.lastName}
@@ -325,7 +362,7 @@ export function Dashboard(): JSX.Element {
               </>
             ) : (
               <>
-                <div className="mb-3 flex items-center justify-between">
+                <div data-demo="dashboard-leaderboard" className="mb-3 flex items-center justify-between">
                   <h3 className="text-base font-semibold text-slate-900">Rep Activity Leaderboard</h3>
                   <p className="text-xs text-slate-500">Sorted by total activities</p>
                 </div>
@@ -375,7 +412,7 @@ export function Dashboard(): JSX.Element {
         </SectionErrorBoundary>
 
         <SectionErrorBoundary title="recent activity feed">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div data-demo="dashboard-feed" className="rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-base font-semibold text-slate-900">Recent Activity</h3>
             {loading.feed || !feed ? (
               <div className="mt-3 h-52 animate-pulse rounded bg-slate-100" />
@@ -385,7 +422,12 @@ export function Dashboard(): JSX.Element {
                   <EmptyState icon={Inbox} message="No recent activity to show." />
                 ) : (
                   feed.activities.map((activity) => (
-                    <div key={activity.id} className="rounded-lg border border-slate-200 px-3 py-2.5 hover:bg-slate-50 transition-colors">
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={() => openLeadWorkspace(activity.lead.id)}
+                      className="block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className={`inline-flex h-6 items-center rounded-md px-1.5 text-[10px] font-bold uppercase tracking-wide ${
@@ -404,7 +446,7 @@ export function Dashboard(): JSX.Element {
                       </div>
                       <p className="mt-1 text-xs text-slate-600">{activity.subject}</p>
                       <p className="mt-0.5 text-xs text-slate-400">{activity.user?.displayName ?? "Team member"}</p>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -416,6 +458,7 @@ export function Dashboard(): JSX.Element {
       <SectionErrorBoundary title="leads going cold">
         {!loading.stale && stale && stale.leads.length > 0 && (
           <button
+            data-demo="dashboard-cold-banner"
             onClick={() => navigate("/leads?moreFilters=1")}
             className="flex w-full items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left transition-colors hover:bg-amber-100"
           >
@@ -426,7 +469,7 @@ export function Dashboard(): JSX.Element {
                 {stale.leads.slice(0, 3).map((l) => l.name).join(", ")}{stale.leads.length > 3 ? ` +${stale.leads.length - 3} more` : ""}
               </p>
             </div>
-            <span className="shrink-0 text-xs font-medium text-amber-700">Review on Leads →</span>
+            <span className="shrink-0 text-xs font-medium text-amber-700">Review in Leads</span>
           </button>
         )}
       </SectionErrorBoundary>

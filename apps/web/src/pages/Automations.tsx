@@ -56,6 +56,24 @@ export function Automations(): JSX.Element {
     loadData().catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const openFirstAutomation = () => {
+      if (automations[0]) {
+        loadLogs(automations[0].id).catch(() => undefined);
+      }
+    };
+    const closeLogs = () => {
+      setSelectedId(null);
+      setLogs([]);
+    };
+    window.addEventListener("crm-demo-open-first-automation", openFirstAutomation);
+    window.addEventListener("crm-demo-close-automation-logs", closeLogs);
+    return () => {
+      window.removeEventListener("crm-demo-open-first-automation", openFirstAutomation);
+      window.removeEventListener("crm-demo-close-automation-logs", closeLogs);
+    };
+  }, [automations]);
+
   const selectedAutomation = useMemo(() => automations.find((item) => item.id === selectedId) ?? null, [automations, selectedId]);
 
   const loadLogs = async (id: string): Promise<void> => {
@@ -96,7 +114,7 @@ export function Automations(): JSX.Element {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Automations</h2>
-        <button onClick={() => setShowForm(true)} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        <button data-demo="automations-create" onClick={() => setShowForm(true)} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
           Create Automation
         </button>
       </div>
@@ -210,7 +228,7 @@ export function Automations(): JSX.Element {
         </form>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div data-demo="automations-list" className="grid gap-3 md:grid-cols-2">
         {loading
           ? Array.from({ length: 4 }).map((_, idx) => <div key={idx} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white" />)
           : automations.map((automation) => (
@@ -219,7 +237,7 @@ export function Automations(): JSX.Element {
                   <h3 className="font-semibold text-slate-900">{automation.name}</h3>
                   <label className="inline-flex items-center gap-2 text-xs text-slate-600">
                     Active
-                    <input type="checkbox" checked={automation.isActive} onChange={(e) => { e.stopPropagation(); toggleActive(automation).catch(() => undefined); }} />
+                    <input data-demo="automations-toggle" type="checkbox" checked={automation.isActive} onChange={(e) => { e.stopPropagation(); toggleActive(automation).catch(() => undefined); }} />
                   </label>
                 </div>
                 <p className="mt-1 text-sm text-slate-600">{automation.description ?? "No description"}</p>
@@ -231,7 +249,7 @@ export function Automations(): JSX.Element {
       </div>
 
       {selectedAutomation && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div data-demo="automations-logs" className="rounded-xl border border-slate-200 bg-white p-4">
           <h3 className="text-lg font-semibold text-slate-900">Execution Logs: {selectedAutomation.name}</h3>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-sm">

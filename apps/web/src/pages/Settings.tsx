@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { apiFetch } from "../lib/api";
 import { resolveApiBaseUrl } from "../lib/apiBaseUrl";
 import { USER_ROLES } from "../types";
+import { useTour } from "../tour/TourProvider";
 
 const BRANCH_OPTIONS = ["ALL", "Baxter", "Bemidji", "Brainerd", "Deerwood", "Garrison", "Grand Rapids", "Hibbing", "Isle", "Nisswa", "Pequot Lakes", "Pine River", "Walker", "Crosby"];
 const LEADS_PER_PAGE_OPTIONS = [25, 50, 100];
@@ -24,11 +25,14 @@ const defaultPreferences: LocalPreferences = {
 
 export function Settings(): JSX.Element {
   const { user, role } = useAuth();
+  const tour = useTour();
   const [prefs, setPrefs] = useState<LocalPreferences>(defaultPreferences);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<"connected" | "unavailable" | "loading">("loading");
   const [adminStats, setAdminStats] = useState<{ users: number; leads: number; activities: number } | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const diagnosticsRef = useRef<HTMLDetailsElement>(null);
+  const adminStatsRef = useRef<HTMLDetailsElement>(null);
   const apiUrl = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
   useEffect(() => {
@@ -72,6 +76,31 @@ export function Settings(): JSX.Element {
       .catch(() => setAdminStats(null));
   }, [role]);
 
+  useEffect(() => {
+    const openDiagnostics = () => {
+      if (diagnosticsRef.current) diagnosticsRef.current.open = true;
+    };
+    const closeDiagnostics = () => {
+      if (diagnosticsRef.current) diagnosticsRef.current.open = false;
+    };
+    const openAdminStats = () => {
+      if (adminStatsRef.current) adminStatsRef.current.open = true;
+    };
+    const closeAdminStats = () => {
+      if (adminStatsRef.current) adminStatsRef.current.open = false;
+    };
+    window.addEventListener("crm-demo-open-settings-diagnostics", openDiagnostics);
+    window.addEventListener("crm-demo-close-settings-diagnostics", closeDiagnostics);
+    window.addEventListener("crm-demo-open-settings-admin-stats", openAdminStats);
+    window.addEventListener("crm-demo-close-settings-admin-stats", closeAdminStats);
+    return () => {
+      window.removeEventListener("crm-demo-open-settings-diagnostics", openDiagnostics);
+      window.removeEventListener("crm-demo-close-settings-diagnostics", closeDiagnostics);
+      window.removeEventListener("crm-demo-open-settings-admin-stats", openAdminStats);
+      window.removeEventListener("crm-demo-close-settings-admin-stats", closeAdminStats);
+    };
+  }, []);
+
   const runEmailSync = async (): Promise<void> => {
     setSyncing(true);
     try {
@@ -102,7 +131,7 @@ export function Settings(): JSX.Element {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div data-tour="settings-preferences" className="rounded-xl border border-slate-200 bg-white p-5">
         <h3 className="text-lg font-semibold text-slate-900">Preferences</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">
@@ -155,7 +184,20 @@ export function Settings(): JSX.Element {
         </div>
       </div>
 
-      <details className="rounded-xl border border-slate-200 bg-white">
+      <div data-demo="settings-tour" className="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 className="text-lg font-semibold text-slate-900">Guided Tour</h3>
+        <p className="mt-1 text-sm text-slate-600">Take or restart the interactive product walkthrough.</p>
+        <div className="mt-3 flex gap-2">
+          <button onClick={() => tour.start()} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+            Start Tour
+          </button>
+          <button onClick={() => tour.reset()} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+            Reset Tour
+          </button>
+        </div>
+      </div>
+
+      <details ref={diagnosticsRef} data-demo="settings-diagnostics" className="rounded-xl border border-slate-200 bg-white">
         <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">
           Diagnostics & App Info
           <span className="ml-2 inline-flex items-center gap-1.5 text-xs font-normal text-slate-500">
@@ -171,7 +213,7 @@ export function Settings(): JSX.Element {
       </details>
 
       {role === USER_ROLES.ADMIN && (
-        <details className="rounded-xl border border-slate-200 bg-white">
+        <details ref={adminStatsRef} data-demo="settings-admin-stats" className="rounded-xl border border-slate-200 bg-white">
           <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">Admin Controls</summary>
           <div className="border-t border-slate-100 px-5 pb-5 pt-3">
             <div className="flex flex-wrap gap-3">
@@ -179,6 +221,7 @@ export function Settings(): JSX.Element {
                 Open Automations
               </Link>
               <button
+                data-demo="settings-email-sync"
                 onClick={() => runEmailSync().catch(() => undefined)}
                 disabled={syncing}
                 className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"

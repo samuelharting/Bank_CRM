@@ -4,7 +4,7 @@ import { prisma } from "../db/client.js";
 import { corsHeaders, handleCorsPreflight, requireAuth } from "../middleware/auth.js";
 import { leadScopeWhere } from "../middleware/scope.js";
 import { SearchRequestBody, type AuthenticatedUser } from "../types/index.js";
-import { callLlm } from "../services/llm.js";
+import { callLlm, getUserFacingLlmError, isLlmEmptyResponseError, isLlmRateLimitError, isLlmTimeoutError } from "../services/llm.js";
 
 interface SearchModelResponse {
   where?: Prisma.LeadWhereInput;
@@ -58,6 +58,43 @@ Today's date is: ${new Date().toISOString().split("T")[0]}
 
 Do not return anything except the JSON object. No markdown, no backticks, no explanation outside the JSON.`;
 
+const LEAD_STATUSES = new Set(["PROSPECT", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST", "DORMANT"]);
+const LEAD_SOURCES = new Set(["REFERRAL", "WALK_IN", "PHONE", "WEBSITE", "EVENT", "EXISTING_CLIENT", "OTHER"]);
+const STOP_WORDS = new Set(["the", "a", "an", "for", "with", "this", "that", "show", "me", "leads", "lead", "and", "or", "to", "of", "in", "on", "at", "by"]);
+
+const buildKeywordFallbackWhere = (query: string): Prisma.LeadWhereInput => {
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9_]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !STOP_WORDS.has(token));
+
+  const tokenClauses = tokens.map((token) => {
+    const upper = token.toUpperCase();
+    const orClauses: Prisma.LeadWhereInput[] = [
+      { firstName: { contains: token, mode: "insensitive" } },
+      { lastName: { contains: token, mode: "insensitive" } },
+      { company: { contains: token, mode: "insensitive" } },
+      { email: { contains: token, mode: "insensitive" } },
+      { phone: { contains: token, mode: "insensitive" } },
+      { city: { contains: token, mode: "insensitive" } },
+      { state: { contains: token, mode: "insensitive" } },
+      { branch: { contains: token, mode: "insensitive" } },
+      { notes: { contains: token, mode: "insensitive" } },
+      { industryCode: { contains: token, mode: "insensitive" } },
+    ];
+    if (LEAD_STATUSES.has(upper)) {
+      orClauses.push({ status: upper as Prisma.EnumLeadStatusFilter["equals"] });
+    }
+    if (LEAD_SOURCES.has(upper)) {
+      orClauses.push({ source: upper as Prisma.EnumLeadSourceFilter["equals"] });
+    }
+    return { OR: orClauses };
+  });
+
+  return tokenClauses.length > 0 ? { AND: tokenClauses } : {};
+};
+
 const runLeadSearch = async (
   user: AuthenticatedUser,
   parsedWhere: Prisma.LeadWhereInput | undefined,
@@ -94,6 +131,9 @@ const parseSearchModelResponse = async (query: string, context: InvocationContex
   try {
     return await getModelJson(query, context);
   } catch (first) {
+    if (!(first instanceof Error) || !/json/i.test(first.message)) {
+      throw first;
+    }
     context.log("search: JSON parse failed, retrying LLM once", first);
     return await getModelJson(
       query,
@@ -121,8 +161,10 @@ export async function search(request: HttpRequest, context: InvocationContext): 
   const auth = await requireAuth(request, context);
   if ("response" in auth) return auth.response;
 
+  let body: SearchRequestBody | null = null;
+
   try {
-    const body = (await request.json()) as SearchRequestBody;
+    body = (await request.json()) as SearchRequestBody;
     if (!body.query?.trim()) {
       return { status: 400, headers: corsHeaders(), jsonBody: { error: "query is required" } };
     }
@@ -147,8 +189,21 @@ export async function search(request: HttpRequest, context: InvocationContext): 
       },
     };
   } catch (error) {
+    if (body?.query?.trim() && (isLlmRateLimitError(error) || isLlmTimeoutError(error) || isLlmEmptyResponseError(error))) {
+      const { results } = await runLeadSearch(auth.user, buildKeywordFallbackWhere(body.query.trim()), { createdAt: "desc" });
+      return {
+        status: 200,
+        headers: corsHeaders(),
+        jsonBody: {
+          results,
+          explanation: `${getUserFacingLlmError(error)} Showing keyword fallback results instead.`,
+          count: results.length,
+          usedFallback: true,
+        },
+      };
+    }
     context.error("Search endpoint failed", error);
-    const message = error instanceof Error ? error.message : "Unexpected server error";
+    const message = getUserFacingLlmError(error);
     return { status: 500, headers: corsHeaders(), jsonBody: { error: "Search failed", details: message } };
   }
 }

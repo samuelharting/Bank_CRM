@@ -19,6 +19,7 @@ import {
   type LeadStatus,
   USER_ROLES,
   formatLeadStatus,
+  formatLeadSource,
 } from "../types";
 import { ToastContainer, type ToastMessage } from "../components/Toast";
 import { useAuth } from "../auth/useAuth";
@@ -115,13 +116,30 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+function readLeadPreferences(): { defaultBranchFilter: string; leadsPerPage: number } {
+  if (typeof window === "undefined") return { defaultBranchFilter: "ALL", leadsPerPage: 25 };
+  try {
+    const raw = window.localStorage.getItem("crm-settings");
+    if (!raw) return { defaultBranchFilter: "ALL", leadsPerPage: 25 };
+    const parsed = JSON.parse(raw) as { defaultBranchFilter?: string; leadsPerPage?: number };
+    return {
+      defaultBranchFilter: parsed.defaultBranchFilter ?? "ALL",
+      leadsPerPage: parsed.leadsPerPage && [25, 50, 100].includes(parsed.leadsPerPage) ? parsed.leadsPerPage : 25,
+    };
+  } catch {
+    return { defaultBranchFilter: "ALL", leadsPerPage: 25 };
+  }
+}
+
 export function Leads(): JSX.Element {
-  const { role } = useAuth();
+  const prefs = readLeadPreferences();
+  const { role, user } = useAuth();
   const readOnly = isReadOnlyRole(role);
   const [searchParams] = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
   const headerActionsRef = useRef<HTMLDivElement>(null);
   const detailActionsRef = useRef<HTMLDivElement>(null);
+  const pendingTourOpenFirstLeadRef = useRef(false);
   const leadsLoadAbortRef = useRef<AbortController | null>(null);
   const leadsLoadGenRef = useRef(0);
   const [leads, setLeads] = useState<ApiLead[]>([]);
@@ -130,7 +148,7 @@ export function Leads(): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const pageSize = prefs.leadsPerPage;
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -138,7 +156,7 @@ export function Leads(): JSX.Element {
   const [aiExplanation, setAiExplanation] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [assignedFilter, setAssignedFilter] = useState("ALL");
-  const [branchFilter, setBranchFilter] = useState("ALL");
+  const [branchFilter, setBranchFilter] = useState(prefs.defaultBranchFilter);
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [followUpStart, setFollowUpStart] = useState("");
   const [followUpEnd, setFollowUpEnd] = useState("");
@@ -183,6 +201,10 @@ export function Leads(): JSX.Element {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const sortedUsers = useMemo(() => users, [users]);
+  const currentUserRecord = useMemo(
+    () => users.find((candidate) => candidate.id === user?.id) ?? null,
+    [user?.id, users],
+  );
 
   const loadUsers = useCallback(async () => {
     const data = await apiFetch<ApiUser[]>("/users");
@@ -258,14 +280,40 @@ export function Leads(): JSX.Element {
     setSyncStatus(data);
   }, []);
 
+  const openLeadDetailDrawer = useCallback(
+    (leadId: string, syncDemoSelection = false) => {
+      setDetailLeadId(leadId);
+      loadLeadDetail(leadId).catch(() => undefined);
+      if (syncDemoSelection) {
+        window.dispatchEvent(new CustomEvent("crm-tour-lead-selected", { detail: leadId }));
+        (window as unknown as Record<string, string>).__demoLeadId = leadId;
+      }
+    },
+    [loadLeadDetail],
+  );
+
+  const openFirstLeadForTour = useCallback(() => {
+    const firstLead = leads[0];
+    if (!firstLead) return false;
+    openLeadDetailDrawer(firstLead.id, true);
+    return true;
+  }, [leads, openLeadDetailDrawer]);
+
   useEffect(() => {
     loadUsers().catch(() => undefined);
     loadSyncStatus().catch(() => undefined);
   }, [loadSyncStatus, loadUsers]);
 
   useEffect(() => {
+    if (aiMode && search.trim()) {
+      const handle = window.setTimeout(() => {
+        loadLeads().catch(() => undefined);
+      }, 450);
+      return () => window.clearTimeout(handle);
+    }
     loadLeads().catch(() => undefined);
-  }, [loadLeads]);
+    return undefined;
+  }, [aiMode, loadLeads, search]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -282,8 +330,7 @@ export function Leads(): JSX.Element {
   useEffect(() => {
     const leadId = searchParams.get("leadId");
     if (leadId) {
-      setDetailLeadId(leadId);
-      loadLeadDetail(leadId).catch(() => undefined);
+      openLeadDetailDrawer(leadId);
     }
     const status = searchParams.get("status");
     if (status === "ALL" || (status && LEAD_STATUS_URL_SET.has(status))) {
@@ -292,7 +339,17 @@ export function Leads(): JSX.Element {
     if (searchParams.get("moreFilters") === "1" || searchParams.get("expandFilters") === "1") {
       setShowMoreFilters(true);
     }
-  }, [searchParams, loadLeadDetail]);
+  }, [openLeadDetailDrawer, searchParams]);
+
+  useEffect(() => {
+    if (!pendingTourOpenFirstLeadRef.current || loading) return;
+    if (leads.length === 0) {
+      pendingTourOpenFirstLeadRef.current = false;
+      return;
+    }
+    pendingTourOpenFirstLeadRef.current = false;
+    openFirstLeadForTour();
+  }, [leads, loading, openFirstLeadForTour]);
 
   useEffect(() => {
     if (!headerActionsOpen && !detailActionsOpen) return;
@@ -326,26 +383,70 @@ export function Leads(): JSX.Element {
   const openAddPanel = useCallback((): void => {
     if (readOnly) return;
     setEditingLead(null);
-    setForm({ ...emptyLeadForm(), assignedToId: users[0]?.id ?? "" });
+    setForm({
+      ...emptyLeadForm(),
+      assignedToId: currentUserRecord?.id ?? user?.id ?? users[0]?.id ?? "",
+      branch: currentUserRecord?.branch ?? "",
+    });
     setPanelOpen(true);
-  }, [readOnly, users]);
+  }, [currentUserRecord?.branch, currentUserRecord?.id, readOnly, user?.id, users]);
 
   useEffect(() => {
     const focusSearch = () => searchRef.current?.focus();
     const openAdd = () => openAddPanel();
     const closeOverlays = () => {
+      pendingTourOpenFirstLeadRef.current = false;
       setPanelOpen(false);
       setDetailLeadId(null);
+    };
+    const tourOpenFirstLead = () => {
+      if (!openFirstLeadForTour() && loading) {
+        pendingTourOpenFirstLeadRef.current = true;
+      }
+    };
+    const demoOpenPrimaryLead = () => {
+      const selectedLeadId = (window as unknown as Record<string, string | undefined>).__demoLeadId;
+      if (selectedLeadId) {
+        openLeadDetailDrawer(selectedLeadId, true);
+        return;
+      }
+      if (!openFirstLeadForTour() && loading) {
+        pendingTourOpenFirstLeadRef.current = true;
+      }
+    };
+    const tourSetTab = (e: Event) => {
+      const tab = (e as CustomEvent<string>).detail;
+      if (tab === "activity" || tab === "contacts" || tab === "documents" || tab === "details") {
+        setDetailTab(tab);
+      }
+    };
+    const tourCloseDrawer = () => {
+      pendingTourOpenFirstLeadRef.current = false;
+      setDetailLeadId(null);
+    };
+    const demoClearSearch = () => {
+      setSearch("");
+      setStatusFilter("ALL");
     };
     window.addEventListener("crm-focus-search", focusSearch);
     window.addEventListener("crm-open-add-lead", openAdd);
     window.addEventListener("crm-close-overlays", closeOverlays);
+    window.addEventListener("crm-tour-open-first-lead", tourOpenFirstLead);
+    window.addEventListener("crm-demo-open-primary-lead", demoOpenPrimaryLead);
+    window.addEventListener("crm-tour-set-detail-tab", tourSetTab);
+    window.addEventListener("crm-tour-close-drawer", tourCloseDrawer);
+    window.addEventListener("crm-demo-clear-search", demoClearSearch);
     return () => {
       window.removeEventListener("crm-focus-search", focusSearch);
       window.removeEventListener("crm-open-add-lead", openAdd);
       window.removeEventListener("crm-close-overlays", closeOverlays);
+      window.removeEventListener("crm-tour-open-first-lead", tourOpenFirstLead);
+      window.removeEventListener("crm-demo-open-primary-lead", demoOpenPrimaryLead);
+      window.removeEventListener("crm-tour-set-detail-tab", tourSetTab);
+      window.removeEventListener("crm-tour-close-drawer", tourCloseDrawer);
+      window.removeEventListener("crm-demo-clear-search", demoClearSearch);
     };
-  }, [openAddPanel]);
+  }, [loading, openAddPanel, openFirstLeadForTour]);
 
   const openEditPanel = (lead: ApiLead): void => {
     if (readOnly) return;
@@ -392,15 +493,22 @@ export function Leads(): JSX.Element {
         branch: form.branch || undefined,
         pipelineValue: form.pipelineValue ? Number(form.pipelineValue) : undefined,
       };
+      let savedLead: ApiLead;
       if (editingLead) {
-        await apiFetch<ApiLead>(`/leads/${editingLead.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        savedLead = await apiFetch<ApiLead>(`/leads/${editingLead.id}`, { method: "PUT", body: JSON.stringify(payload) });
         addToast("success", "Lead updated successfully");
       } else {
-        await apiFetch<ApiLead>("/leads", { method: "POST", body: JSON.stringify(payload) });
+        savedLead = await apiFetch<ApiLead>("/leads", { method: "POST", body: JSON.stringify(payload) });
         addToast("success", "Lead created successfully");
       }
       setPanelOpen(false);
       await loadLeads();
+      if (editingLead && detailLeadId === savedLead.id) {
+        await loadLeadDetail(savedLead.id);
+      } else if (!editingLead) {
+        setDetailTab("activity");
+        openLeadDetailDrawer(savedLead.id);
+      }
     } catch (error) {
       addToast("error", error instanceof Error ? error.message : "Unable to save lead");
     } finally {
@@ -421,9 +529,10 @@ export function Leads(): JSX.Element {
   };
 
   const submitQuickActivity = async (): Promise<void> => {
-    if (readOnly || !editingLead || !activitySubject.trim()) return;
+    const targetLead = detailLead ?? editingLead;
+    if (readOnly || !targetLead || !activitySubject.trim()) return;
     try {
-      await apiFetch(`/leads/${editingLead.id}/activities`, {
+      await apiFetch(`/leads/${targetLead.id}/activities`, {
         method: "POST",
         body: JSON.stringify({
           type: activityType,
@@ -433,6 +542,7 @@ export function Leads(): JSX.Element {
       });
       setActivitySubject("");
       setActivityDescription("");
+      await loadLeadDetail(targetLead.id);
       addToast("success", "Activity logged");
     } catch (error) {
       addToast("error", error instanceof Error ? error.message : "Unable to log activity");
@@ -595,7 +705,10 @@ export function Leads(): JSX.Element {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-slate-900">Leads</h2>
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Leads</h2>
+          <p className="mt-1 text-sm text-slate-600">Review the relationship, capture the touchpoint, and set the next step before you move on.</p>
+        </div>
         <div className="flex items-center gap-2">
           {!readOnly && (
             <button onClick={openAddPanel} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
@@ -609,6 +722,7 @@ export function Leads(): JSX.Element {
                 aria-expanded={headerActionsOpen}
                 aria-haspopup="menu"
                 aria-label="More lead actions"
+                data-demo="leads-export"
                 onClick={() => setHeaderActionsOpen((open) => !open)}
                 className="rounded-md border border-slate-300 p-2 text-slate-600 hover:bg-slate-50"
               >
@@ -643,6 +757,7 @@ export function Leads(): JSX.Element {
           <div className="relative flex-1">
             <input
               ref={searchRef}
+              data-tour="leads-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={
@@ -653,22 +768,24 @@ export function Leads(): JSX.Element {
               className="w-full rounded-md border border-gray-300 px-3 py-2 pr-12 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
+              data-tour="leads-ai-toggle"
               onClick={() => setAiMode((prev) => !prev)}
               className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium ${
-                aiMode ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                aiMode ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
               title="Toggle AI Search (Cmd/Ctrl+K)"
             >
-              ✨ AI
+              AI
             </button>
           </div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <select data-tour="leads-status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="ALL">All statuses</option>
             {LEAD_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{formatLeadStatus(status)}</option>
             ))}
           </select>
           <button
+            data-demo="leads-more-filters"
             onClick={() => setShowMoreFilters((prev) => !prev)}
             className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
               activeFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"
@@ -696,7 +813,7 @@ export function Leads(): JSX.Element {
             <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="ALL">Source: All</option>
               {LEAD_SOURCES.map((source) => (
-                <option key={source} value={source}>{source}</option>
+                <option key={source} value={source}>{formatLeadSource(source)}</option>
               ))}
             </select>
             <div className="grid grid-cols-2 gap-2">
@@ -717,8 +834,8 @@ export function Leads(): JSX.Element {
 
       {aiExplanation && (
         <div className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-          <span aria-hidden>✨</span>
-          <span>Showing: {aiExplanation}</span>
+          <span className="font-medium">AI:</span>
+          <span>{aiExplanation}</span>
         </div>
       )}
 
@@ -790,8 +907,8 @@ export function Leads(): JSX.Element {
                       </div>
                     </td>
                   </tr>
-                ) : leads.map((lead) => (
-                  <tr key={lead.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => { setDetailLeadId(lead.id); loadLeadDetail(lead.id).catch(() => undefined); }}>
+                ) : leads.map((lead, leadIdx) => (
+                  <tr key={lead.id} {...(leadIdx === 0 ? { "data-tour": "lead-first-row" } : {})} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => { setDetailLeadId(lead.id); loadLeadDetail(lead.id).catch(() => undefined); }}>
                     <td className="px-4 py-3 font-medium text-slate-900">{lead.firstName} {lead.lastName}</td>
                     <td className="px-4 py-3 text-slate-600">{lead.company ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-600">{lead.industryCode ?? "—"}</td>
@@ -819,9 +936,10 @@ export function Leads(): JSX.Element {
                 <p className="text-xs mt-1">Try adjusting your filters or add a new lead.</p>
               </div>
             )
-          : leads.map((lead) => (
+          : leads.map((lead, leadIdx) => (
               <button
                 key={lead.id}
+                {...(leadIdx === 0 ? { "data-tour": "lead-first-row" } : {})}
                 onClick={() => {
                   setDetailLeadId(lead.id);
                   loadLeadDetail(lead.id).catch(() => undefined);
@@ -1015,8 +1133,8 @@ export function Leads(): JSX.Element {
 
       {detailLeadId && (
         <div className="fixed inset-0 z-[60]">
-          <div onClick={() => setDetailLeadId(null)} className="absolute inset-0 bg-slate-900/40" />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-3xl transform bg-white shadow-xl transition-transform duration-300">
+          <div data-demo="lead-drawer-close" onClick={() => setDetailLeadId(null)} className="absolute inset-0 bg-slate-900/40" />
+          <aside data-demo="lead-drawer" className="absolute right-0 top-0 h-full w-full max-w-3xl transform bg-white shadow-xl transition-transform duration-300">
             {detailLoading || !detailLead ? (
               <div className="space-y-3 p-6">
                 <div className="h-6 w-64 animate-pulse rounded bg-slate-200" />
@@ -1024,7 +1142,7 @@ export function Leads(): JSX.Element {
               </div>
             ) : (
               <div className="flex h-full flex-col">
-                <div className="border-b border-slate-200 px-6 py-4">
+                <div data-demo="lead-drawer-header" className="border-b border-slate-200 px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xl font-semibold text-slate-900">{detailLead.firstName} {detailLead.lastName}</h3>
@@ -1033,13 +1151,14 @@ export function Leads(): JSX.Element {
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClasses[detailLead.status]}`}>{formatLeadStatus(detailLead.status)}</span>
                       {!readOnly && (
-                        <button onClick={() => openEditPanel(detailLead)} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        <button data-demo="lead-edit" onClick={() => openEditPanel(detailLead)} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                           Edit
                         </button>
                       )}
                       <Link
+                        data-tour="lead-prep-button"
                         to={`/prep?leadId=${detailLead.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 transition-all"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-700 bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
                       >
                         <Sparkles className="h-4 w-4" /> AI Prep
                       </Link>
@@ -1078,6 +1197,17 @@ export function Leads(): JSX.Element {
                     {detailLead.assignedTo?.displayName ?? "Unassigned"} • {detailLead.branch ?? "No branch"} •{" "}
                     {detailLead.pipelineValue ? currency.format(Number(detailLead.pipelineValue)) : "No pipeline value"}
                   </p>
+                  <div data-demo="lead-workflow-links" className="mt-4 flex flex-wrap gap-2">
+                    <Link to={`/contacts?leadId=${detailLead.id}`} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                      Portfolio contacts
+                    </Link>
+                    <Link to={`/activities?leadId=${detailLead.id}`} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                      Full activity
+                    </Link>
+                    <Link to={`/ticklers?leadId=${detailLead.id}`} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                      Ticklers
+                    </Link>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1 border-b border-slate-200 px-6">
                   {(
@@ -1091,6 +1221,7 @@ export function Leads(): JSX.Element {
                     <button
                       key={key}
                       type="button"
+                      data-tour={`lead-tab-${key}`}
                       onClick={() => setDetailTab(key)}
                       className={`relative px-4 py-3 text-sm font-medium transition-colors ${
                         detailTab === key
@@ -1105,6 +1236,26 @@ export function Leads(): JSX.Element {
                 <div className="flex-1 overflow-y-auto p-6">
                   {detailTab === "activity" && (
                     <div className="space-y-3">
+                      {!readOnly && (
+                        <div data-demo="lead-activity-quick-log" className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h4 className="text-sm font-semibold text-slate-900">Log the latest touchpoint</h4>
+                          <p className="mt-1 text-xs text-slate-600">Capture the call, email, or meeting before moving to the next relationship.</p>
+                          <div className="mt-3 grid gap-2">
+                            <select value={activityType} onChange={(e) => setActivityType(e.target.value as ActivityType)} className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                              {ACTIVITY_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {type}
+                                </option>
+                              ))}
+                            </select>
+                            <input value={activitySubject} onChange={(e) => setActivitySubject(e.target.value)} placeholder="Subject" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                            <textarea value={activityDescription} onChange={(e) => setActivityDescription(e.target.value)} rows={2} placeholder="Notes" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                            <button disabled={!activitySubject.trim()} type="button" onClick={() => submitQuickActivity().catch(() => undefined)} className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+                              Add Activity
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <label className="inline-flex items-center gap-2 text-xs text-slate-600">
                           <input
@@ -1136,7 +1287,7 @@ export function Leads(): JSX.Element {
                             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                               {activityEmailOnly && (detailLead.activities?.length ?? 0) > 0
                                 ? "No email activities match this filter. Turn off “Email only” to see all touchpoints."
-                                : "No activities logged yet. Open Edit and add a call, email, or meeting with notes."}
+                                : "No activities logged yet. Use the quick log above to record the latest touchpoint."}
                             </div>
                           );
                         }
@@ -1163,21 +1314,25 @@ export function Leads(): JSX.Element {
                     <div className="space-y-4">
                       {!readOnly && (
                         <>
-                          <div className="grid gap-2 md:grid-cols-2">
-                            <input value={contactForm.firstName} onChange={(e) => setContactForm((prev) => ({ ...prev, firstName: e.target.value }))} placeholder="First Name" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                            <input value={contactForm.lastName} onChange={(e) => setContactForm((prev) => ({ ...prev, lastName: e.target.value }))} placeholder="Last Name" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                            <input value={contactForm.email} onChange={(e) => setContactForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                            <input value={contactForm.phone} onChange={(e) => setContactForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                            <input value={contactForm.title} onChange={(e) => setContactForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="Title" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                              <input type="checkbox" checked={contactForm.isPrimary} onChange={(e) => setContactForm((prev) => ({ ...prev, isPrimary: e.target.checked }))} />
-                              Primary contact
-                            </label>
-                            <textarea value={contactForm.notes} onChange={(e) => setContactForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes" rows={2} className="md:col-span-2 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          <div data-demo="lead-contacts-form" className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <h4 className="text-sm font-semibold text-slate-900">Relationship team</h4>
+                            <p className="mt-1 text-xs text-slate-600">Track the decision-makers, operators, and supporters tied to this lead.</p>
+                            <div className="mt-3 grid gap-2 md:grid-cols-2">
+                              <input value={contactForm.firstName} onChange={(e) => setContactForm((prev) => ({ ...prev, firstName: e.target.value }))} placeholder="First Name" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                              <input value={contactForm.lastName} onChange={(e) => setContactForm((prev) => ({ ...prev, lastName: e.target.value }))} placeholder="Last Name" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                              <input value={contactForm.email} onChange={(e) => setContactForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                              <input value={contactForm.phone} onChange={(e) => setContactForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                              <input value={contactForm.title} onChange={(e) => setContactForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="Title" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" checked={contactForm.isPrimary} onChange={(e) => setContactForm((prev) => ({ ...prev, isPrimary: e.target.checked }))} />
+                                Primary contact
+                              </label>
+                              <textarea value={contactForm.notes} onChange={(e) => setContactForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Notes" rows={2} className="md:col-span-2 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                            </div>
+                            <button disabled={!contactForm.firstName.trim() || !contactForm.lastName.trim()} onClick={() => submitContact().catch(() => undefined)} className="mt-3 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+                              {contactForm.id ? "Update Contact" : "Add Contact"}
+                            </button>
                           </div>
-                          <button onClick={() => submitContact().catch(() => undefined)} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                            {contactForm.id ? "Update Contact" : "Add Contact"}
-                          </button>
                         </>
                       )}
                       <div className="space-y-2">

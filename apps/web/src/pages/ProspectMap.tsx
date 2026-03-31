@@ -82,7 +82,7 @@ export function ProspectMap(): JSX.Element {
   };
 
   return (
-    <section className="space-y-4">
+    <section data-tour="map-overview" className="space-y-4">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -91,6 +91,7 @@ export function ProspectMap(): JSX.Element {
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{markers.length} lead{markers.length !== 1 ? "s" : ""}</span>
         </div>
         <button
+          data-demo="map-geocode"
           onClick={() => runGeocode().catch(() => undefined)}
           disabled={geocoding}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
@@ -99,7 +100,7 @@ export function ProspectMap(): JSX.Element {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm" style={{ height: "calc(100vh - 220px)", minHeight: 400 }}>
+      <div data-demo="map-filters" className="overflow-hidden rounded-xl border border-slate-200 shadow-sm" style={{ height: "calc(100vh - 220px)", minHeight: 400 }}>
         {loading ? (
           <div className="flex h-full items-center justify-center bg-slate-100 text-sm text-slate-500">Loading map…</div>
         ) : (

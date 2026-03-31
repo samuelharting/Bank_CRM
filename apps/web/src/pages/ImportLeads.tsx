@@ -206,7 +206,7 @@ export function ImportLeads(): JSX.Element {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div data-demo="import-upload" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800">1. Upload</h3>
         <input
           type="file"
@@ -220,7 +220,7 @@ export function ImportLeads(): JSX.Element {
 
       {preview && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800">2. Column mapping</h3>
+          <h3 data-demo="import-mapping" className="text-sm font-semibold text-slate-800">2. Column mapping</h3>
           <p className="mt-1 text-xs text-slate-500">Pick the column header from your sheet for each field. First and last name are required.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {FIELD_OPTIONS.map((f) => (
@@ -278,6 +278,7 @@ export function ImportLeads(): JSX.Element {
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-700">Assigned officer (all imported leads)</label>
             <select
+              data-demo="import-assignee"
               value={assignedToId}
               onChange={(e) => setAssignedToId(e.target.value)}
               className="mt-1 max-w-md rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -292,6 +293,8 @@ export function ImportLeads(): JSX.Element {
 
           <button
             type="button"
+            data-demo="import-execute"
+            data-demo-mutates="true"
             disabled={executing}
             onClick={() => runImport().catch(() => undefined)}
             className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
@@ -325,7 +328,7 @@ export function ImportLeads(): JSX.Element {
       )}
 
       {jobs.length > 0 && (
-        <details className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <details data-demo="import-history" className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
             Recent imports ({jobs.length})
           </summary>

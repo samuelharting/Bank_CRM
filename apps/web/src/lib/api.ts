@@ -1,7 +1,7 @@
 import { msalInstance } from "../auth/AuthProvider";
 import { apiScopes } from "../auth/msalConfig";
 import { resolveApiBaseUrl } from "./apiBaseUrl";
-import { DEV_BYPASS_BEARER, isDevAuthBypassClientEnabled, readDevBypassUser } from "./devAuth";
+import { clearDevBypassUser, DEV_BYPASS_BEARER, isDevAuthBypassClientEnabled, readDevBypassUser } from "./devAuth";
 import { getTeamsAuthToken, isInTeams } from "./teams";
 
 const apiUrl = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
@@ -56,6 +56,20 @@ const parseErrorMessage = async (response: Response): Promise<string> => {
   return payload?.details ?? payload?.error ?? `API request failed with status ${response.status}`;
 };
 
+function handleUnauthorized(response: Response, message: string): void {
+  // If the local seeded DB changed, the saved dev-bypass user can become invalid.
+  if (
+    response.status === 401 &&
+    isDevAuthBypassClientEnabled() &&
+    message.startsWith("Dev bypass:")
+  ) {
+    clearDevBypassUser();
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login");
+    }
+  }
+}
+
 export async function apiFetch<TResponse>(path: string, init?: RequestInit): Promise<TResponse> {
   const auth = await resolveAuth();
   const response = await fetch(`${apiUrl}${path}`, {
@@ -68,6 +82,7 @@ export async function apiFetch<TResponse>(path: string, init?: RequestInit): Pro
 
   if (!response.ok) {
     const message = await parseErrorMessage(response);
+    handleUnauthorized(response, message);
     window.dispatchEvent(new CustomEvent("crm-api-error", { detail: message }));
     throw new Error(message);
   }
@@ -88,6 +103,7 @@ export async function apiFetchBlob(path: string, init?: RequestInit): Promise<Re
 
   if (!response.ok) {
     const message = await parseErrorMessage(response);
+    handleUnauthorized(response, message);
     window.dispatchEvent(new CustomEvent("crm-api-error", { detail: message }));
     throw new Error(message);
   }

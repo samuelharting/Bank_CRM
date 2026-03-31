@@ -9,15 +9,18 @@ import { RoleBadge } from "./RoleBadge";
 import { Activity, BarChart3, Clock, FileSpreadsheet, LayoutDashboard, MapPin, Menu, Settings, Target, Users, X, Zap, ExternalLink } from "lucide-react";
 import { isInTeams, openInBrowser } from "../lib/teams";
 import { isReadOnlyRole } from "../lib/roles";
+import { DemoButton } from "../demo/DemoButton";
 
-interface NavItem { to: string; label: string; icon: typeof LayoutDashboard }
+const DEMO_ENABLED = import.meta.env.VITE_DEMO_MODE === "true";
+
+interface NavItem { to: string; label: string; icon: typeof LayoutDashboard; tourId?: string }
 interface NavGroup { label: string; items: NavItem[] }
 
 const coreNavItems: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/leads", label: "Leads", icon: Target },
-  { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/activities", label: "Activities", icon: Activity },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tourId: "nav-dashboard" },
+  { to: "/leads", label: "Leads", icon: Target, tourId: "nav-leads" },
+  { to: "/contacts", label: "Contacts", icon: Users, tourId: "nav-contacts" },
+  { to: "/activities", label: "Activities", icon: Activity, tourId: "nav-activities" },
 ];
 
 export function Layout(): JSX.Element {
@@ -30,9 +33,15 @@ export function Layout(): JSX.Element {
   const [collapsed, setCollapsed] = useState(isInTeams());
   const teamsMode = isInTeams();
 
+  const loadNotifications = async (): Promise<ApiNotification[]> => {
+    const response = await apiFetch<{ notifications: ApiNotification[] }>("/notifications");
+    setNotifications(response.notifications);
+    return response.notifications;
+  };
+
   const toolsItems: NavItem[] = [];
-  if (!isReadOnlyRole(role)) toolsItems.push({ to: "/ticklers", label: "Ticklers", icon: Clock });
-  toolsItems.push({ to: "/map", label: "Map", icon: MapPin });
+  if (!isReadOnlyRole(role)) toolsItems.push({ to: "/ticklers", label: "Ticklers", icon: Clock, tourId: "nav-ticklers" });
+  toolsItems.push({ to: "/map", label: "Map", icon: MapPin, tourId: "nav-map" });
   if (!isReadOnlyRole(role)) toolsItems.push({ to: "/import/leads", label: "Import", icon: FileSpreadsheet });
 
   const adminItems: NavItem[] = [];
@@ -48,6 +57,36 @@ export function Layout(): JSX.Element {
   if (adminItems.length > 0) navGroups.push({ label: "Reporting", items: adminItems });
 
   useEffect(() => {
+    const openSidebar = () => setMobileSidebarOpen(true);
+    const closeSidebar = () => setMobileSidebarOpen(false);
+    window.addEventListener("crm-tour-open-sidebar", openSidebar);
+    window.addEventListener("crm-tour-close-sidebar", closeSidebar);
+    window.addEventListener("crm-demo-open-sidebar", openSidebar);
+    window.addEventListener("crm-demo-close-sidebar", closeSidebar);
+    return () => {
+      window.removeEventListener("crm-tour-open-sidebar", openSidebar);
+      window.removeEventListener("crm-tour-close-sidebar", closeSidebar);
+      window.removeEventListener("crm-demo-open-sidebar", openSidebar);
+      window.removeEventListener("crm-demo-close-sidebar", closeSidebar);
+    };
+  }, []);
+
+  useEffect(() => {
+    const openNotificationsPanel = () => {
+      loadNotifications()
+        .then(() => setOpenNotifications(true))
+        .catch(() => undefined);
+    };
+    const closeNotificationsPanel = () => setOpenNotifications(false);
+    window.addEventListener("crm-demo-open-notifications", openNotificationsPanel);
+    window.addEventListener("crm-demo-close-notifications", closeNotificationsPanel);
+    return () => {
+      window.removeEventListener("crm-demo-open-notifications", openNotificationsPanel);
+      window.removeEventListener("crm-demo-close-notifications", closeNotificationsPanel);
+    };
+  }, []);
+
+  useEffect(() => {
     const loadCount = async (): Promise<void> => {
       const response = await apiFetch<{ unread: number }>("/notifications/count");
       setUnreadCount(response.unread);
@@ -60,9 +99,12 @@ export function Layout(): JSX.Element {
   }, []);
 
   const openBell = async (): Promise<void> => {
-    const response = await apiFetch<{ notifications: ApiNotification[] }>("/notifications");
-    setNotifications(response.notifications);
-    setOpenNotifications((prev) => !prev);
+    if (openNotifications) {
+      setOpenNotifications(false);
+      return;
+    }
+    await loadNotifications();
+    setOpenNotifications(true);
   };
 
   const markAllRead = async (): Promise<void> => {
@@ -88,7 +130,7 @@ export function Layout(): JSX.Element {
           <button className="rounded-md p-2 text-slate-300 hover:bg-slate-800 md:hidden" onClick={() => setMobileSidebarOpen(false)}>
             <X className="h-4 w-4" />
           </button>
-          <button className="hidden rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:text-slate-200 md:block" onClick={() => setCollapsed((prev) => !prev)}>
+          <button data-demo="sidebar-collapse" className="hidden rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:text-slate-200 md:block" onClick={() => setCollapsed((prev) => !prev)}>
             {collapsed ? "→" : "←"}
           </button>
         </div>
@@ -114,6 +156,7 @@ export function Layout(): JSX.Element {
                     key={item.to}
                     to={item.to}
                     onClick={() => setMobileSidebarOpen(false)}
+                    data-tour={item.tourId}
                     className={({ isActive }) =>
                       `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-600/90 text-white shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`
                     }
@@ -127,7 +170,7 @@ export function Layout(): JSX.Element {
           ))}
         </nav>
         <div className="mt-4 border-t border-slate-800 pt-4">
-          <NavLink to="/settings" className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-600/90 text-white shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
+          <NavLink to="/settings" data-tour="nav-settings" className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-600/90 text-white shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
             <Settings className="h-4 w-4 shrink-0" />
             {!collapsed && "Settings"}
           </NavLink>
@@ -138,6 +181,7 @@ export function Layout(): JSX.Element {
           </button>
         )}
         <button
+          data-demo="sign-out"
           onClick={() => logout()}
           className="mt-8 min-h-11 rounded-md border border-slate-600 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800"
         >
@@ -146,7 +190,7 @@ export function Layout(): JSX.Element {
       </aside>
       <div className="flex-1">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 shadow-sm md:px-6 md:py-4">
-          <div className="flex items-center gap-3">
+          <div data-demo="header-profile" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
               {(user?.displayName ?? "U").split(" ").map(n => n[0]).join("").slice(0, 2)}
             </div>
@@ -156,7 +200,9 @@ export function Layout(): JSX.Element {
             </div>
           </div>
           <div className="relative flex items-center gap-3">
+            {DEMO_ENABLED && <DemoButton />}
             <button
+              data-demo="header-notifications"
               onClick={() => openBell().catch(() => undefined)}
               className="relative rounded-full p-2 text-slate-600 hover:bg-slate-100"
             >
@@ -168,7 +214,7 @@ export function Layout(): JSX.Element {
               )}
             </button>
             {openNotifications && (
-              <div className="absolute right-0 top-11 z-50 w-96 rounded-lg border border-slate-200 bg-white shadow-lg">
+              <div data-demo="notifications-panel" className="absolute right-0 top-11 z-50 w-96 rounded-lg border border-slate-200 bg-white shadow-lg">
                 <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
                   <p className="text-sm font-semibold text-slate-900">Notifications</p>
                   <button onClick={() => markAllRead().catch(() => undefined)} className="text-xs text-blue-600 hover:underline">
