@@ -5,13 +5,13 @@ export const shellSteps: DemoStep[] = [
     id: "shell-welcome",
     module: "shell",
     title: "Welcome to the Deerwood Bank CRM Demo!",
-    body: "This guided demo walks you through every major feature of the platform. It's organized by module — you can pause anytime, skip sections, or restart from the Demo button. Let's begin with the app shell.",
+    body: "This guided demo walks you through every major feature of the platform. It's organized by module - you can pause anytime, skip sections, or restart from the Demo button. Let's begin with the app shell.",
   },
   {
     id: "shell-sidebar-core",
     module: "shell",
     title: "Core Navigation",
-    body: "The sidebar is your home base. These four items — Dashboard, Leads, Contacts, and Activities — are available to every user regardless of role.",
+    body: "The sidebar is your home base. These four items - Dashboard, Leads, Contacts, and Activities - are available to every user regardless of role.",
     target: "nav-dashboard",
     targetAttr: "data-tour",
     placement: "right",
@@ -33,7 +33,7 @@ export const shellSteps: DemoStep[] = [
     id: "shell-sidebar-reporting",
     module: "shell",
     title: "Reporting & Admin",
-    body: "Managers and admins see additional items here: Reports for pipeline analytics, and Automations for workflow rules. These are role-gated — sales reps won't see them.",
+    body: "Managers and admins see additional items here: Reports for pipeline analytics, and Automations for workflow rules. These are role-gated - sales reps won't see them.",
     target: "nav-settings",
     targetAttr: "data-tour",
     placement: "right",
@@ -43,21 +43,21 @@ export const shellSteps: DemoStep[] = [
     id: "shell-sidebar-collapse-show",
     module: "shell",
     title: "Collapse Sidebar",
-    body: "This button collapses the sidebar to icon-only mode for more screen space. Watch — we'll collapse it now.",
+    body: "This button collapses the sidebar to icon-only mode for more screen space. Watch - we'll collapse it now.",
     target: "sidebar-collapse",
     placement: "right",
+    afterDismiss: [
+      { type: "click", target: "[data-demo='sidebar-collapse']" },
+      { type: "wait", value: "400" },
+    ],
   },
   {
     id: "shell-sidebar-collapsed",
     module: "shell",
     title: "Collapsed View",
-    body: "Now the sidebar shows only icons — hover any icon to see its label. This gives you maximum workspace. Let's expand it back.",
+    body: "Now the sidebar shows only icons - hover any icon to see its label. This gives you maximum workspace. Let's expand it back.",
     target: "sidebar-collapse",
     placement: "right",
-    beforeShow: [
-      { type: "click", target: "[data-demo='sidebar-collapse']" },
-      { type: "wait", value: "400" },
-    ],
   },
   {
     id: "shell-sidebar-expanded",
@@ -66,7 +66,7 @@ export const shellSteps: DemoStep[] = [
     body: "Back to the full sidebar. In Teams mode, it starts collapsed automatically to save space. Now let's look at the header.",
     target: "sidebar-collapse",
     placement: "right",
-    beforeShow: [
+    afterDismiss: [
       { type: "click", target: "[data-demo='sidebar-collapse']" },
       { type: "wait", value: "400" },
     ],
@@ -90,6 +90,10 @@ export const shellSteps: DemoStep[] = [
     body: "The bell icon shows your unread notification count. When you have new alerts, a red badge appears. Let's click it to see your notifications.",
     target: "header-notifications",
     placement: "bottom",
+    afterDismiss: [
+      { type: "dispatch", value: "crm-demo-open-notifications" },
+      { type: "wait", value: "400" },
+    ],
   },
   {
     id: "shell-notifications-panel",
@@ -99,7 +103,7 @@ export const shellSteps: DemoStep[] = [
     target: "notifications-panel",
     placement: "left",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-open-notifications" },
+      { type: "waitFor", target: "[data-demo='notifications-panel']", timeoutMs: 8000 },
       { type: "wait", value: "400" },
     ],
     afterDismiss: [

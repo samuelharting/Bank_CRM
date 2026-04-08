@@ -5,9 +5,8 @@ export const mapSteps: DemoStep[] = [
     id: "map-intro",
     module: "map",
     title: "Prospect Map",
-    body: "The Map page visualizes your leads geographically. Each marker represents a lead — hover to see details, or filter to focus on specific areas.",
+    body: "The Map page visualizes your leads geographically. Each marker represents a lead - hover to see details, or filter to focus on specific areas.",
     beforeShow: [
-      { type: "navigate", value: "/map" },
       { type: "waitFor", target: "[data-tour='map-overview']" },
     ],
   },
@@ -24,7 +23,7 @@ export const mapSteps: DemoStep[] = [
     id: "map-filters",
     module: "map",
     title: "Map Filters",
-    body: "Filter markers by branch, lead status, assigned rep, or search by name. The map updates in real time as you change filters — markers appear and disappear instantly.",
+    body: "Filter markers by branch, lead status, assigned rep, or search by name. The map updates in real time as you change filters - markers appear and disappear instantly.",
     target: "map-filters",
     placement: "bottom",
   },
@@ -40,6 +39,6 @@ export const mapSteps: DemoStep[] = [
     id: "map-done",
     module: "map",
     title: "Map Complete",
-    body: "That's the Map! Next up depends on your role — if you have access, we'll look at Import, Reports, or Automations. Otherwise we'll head to Settings.",
+    body: "That's the Map! Next up depends on your role - if you have access, we'll look at Import, Reports, or Automations. Otherwise we'll head to Settings.",
   },
 ];

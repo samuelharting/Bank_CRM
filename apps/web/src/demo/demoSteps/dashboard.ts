@@ -60,9 +60,13 @@ export const dashboardSteps: DemoStep[] = [
     id: "dash-open-work-item",
     module: "dashboard",
     title: "Open The Next Relationship",
-    body: "Now we'll open a live relationship from the queue and carry it through the rest of the CRM. This is the daily loop the platform is designed around.",
-    target: "dashboard-first-followup",
+    body: "Now we'll open a live relationship straight from the dashboard and carry it through the rest of the CRM. This keeps the story connected whether you're working a queue or reviewing team activity.",
+    target: "dashboard-primary-relationship",
     placement: "top",
-    requiredRoles: [USER_ROLES.SALES_REP],
+    requiredRoles: [USER_ROLES.SALES_REP, USER_ROLES.BRANCH_MANAGER, USER_ROLES.EXECUTIVE, USER_ROLES.ADMIN],
+    afterDismiss: [
+      { type: "dispatch", value: "crm-demo-open-dashboard-followup" },
+      { type: "wait", value: "250" },
+    ],
   },
 ];

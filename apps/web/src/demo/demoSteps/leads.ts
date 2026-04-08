@@ -5,9 +5,8 @@ export const leadsSteps: DemoStep[] = [
     id: "leads-intro",
     module: "leads",
     title: "Lead Workspace",
-    body: "The lead workspace is where the relationship comes together. We'll open the same lead from the dashboard queue so you can see how the CRM keeps context in one place.",
+    body: "The lead workspace is where the relationship comes together. We're carrying the same lead forward from the dashboard so you can see how the CRM keeps context in one place.",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-open-dashboard-followup" },
       { type: "waitFor", target: "[data-demo='lead-drawer']", timeoutMs: 12000 },
     ],
   },
@@ -121,6 +120,10 @@ export const leadsSteps: DemoStep[] = [
     beforeShow: [
       { type: "dispatch", value: "crm-demo-open-primary-lead" },
       { type: "waitFor", target: "[data-tour='lead-prep-button']", timeoutMs: 12000 },
+    ],
+    afterDismiss: [
+      { type: "dispatch", value: "crm-demo-navigate-prep" },
+      { type: "wait", value: "250" },
     ],
   },
 ];

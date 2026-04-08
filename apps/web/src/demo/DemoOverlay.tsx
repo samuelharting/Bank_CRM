@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDemo } from "./DemoProvider";
 
 const PADDING = 10;
@@ -39,6 +39,7 @@ function computePos(
       left = rect.left - PADDING - TOOLTIP_GAP - tw;
       break;
   }
+
   left = Math.max(PADDING, Math.min(left, window.innerWidth - tw - PADDING));
   top = Math.max(PADDING, Math.min(top, window.innerHeight - th - PADDING));
   return { top, left };
@@ -52,44 +53,71 @@ export function DemoOverlay(): JSX.Element | null {
   const measuredH = tooltipH || 240;
 
   useEffect(() => {
-    if (tooltipRef.current) {
-      setTooltipH(tooltipRef.current.getBoundingClientRect().height);
-    }
+    const node = tooltipRef.current;
+    if (!node) return;
+
+    const update = () => setTooltipH(node.getBoundingClientRect().height);
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    window.addEventListener("resize", update);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, [demo.currentStep, demo.targetRect]);
 
-  if (!demo.isActive || demo.isPaused || !demo.currentStep) return null;
-
   const { currentStep, stepIndex, totalSteps, targetRect, moduleProgress, isExecuting } = demo;
+  const spotlight = useMemo(() => {
+    if (!targetRect) {
+      return {
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+      };
+    }
+
+    const top = Math.max(0, targetRect.top - PADDING);
+    const left = Math.max(0, targetRect.left - PADDING);
+    const right = Math.min(window.innerWidth, targetRect.right + PADDING);
+    const bottom = Math.min(window.innerHeight, targetRect.bottom + PADDING);
+
+    return {
+      top,
+      left,
+      right,
+      bottom,
+      width: Math.max(0, right - left),
+      height: Math.max(0, bottom - top),
+    };
+  }, [targetRect]);
+
+  if (!demo.isActive || demo.isPaused || !currentStep) return null;
+
   const isModal = !currentStep.target || !targetRect;
   const isLast = stepIndex === totalSteps - 1;
   const isFirst = stepIndex === 0;
   const progressPct = ((stepIndex + 1) / totalSteps) * 100;
 
-  // ── Progress bar (always shown at top) ──
   const progressBar = (
     <div className="fixed inset-x-0 top-0 z-[122] h-1 bg-slate-200">
-      <div
-        className="h-full bg-blue-600 transition-all duration-500 ease-out"
-        style={{ width: `${progressPct}%` }}
-      />
+      <div className="h-full bg-blue-600 transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
     </div>
   );
 
-  // ── Controls row ──
   const controls = (
     <div className="mt-4 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <button
-          onClick={demo.pause}
-          className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
-        >
+        <button onClick={demo.pause} className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
           Pause
         </button>
         <span className="text-slate-300">·</span>
-        <button
-          onClick={demo.skipModule}
-          className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
-        >
+        <button onClick={demo.skipModule} className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
           Skip {moduleProgress.label}
         </button>
       </div>
@@ -98,7 +126,7 @@ export function DemoOverlay(): JSX.Element | null {
           <button
             onClick={demo.back}
             disabled={isExecuting}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
           >
             Back
           </button>
@@ -106,7 +134,7 @@ export function DemoOverlay(): JSX.Element | null {
         <button
           onClick={demo.next}
           disabled={isExecuting}
-          className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
         >
           {isLast ? "Finish" : "Next"}
         </button>
@@ -114,7 +142,6 @@ export function DemoOverlay(): JSX.Element | null {
     </div>
   );
 
-  // ── Module pill + step counter ──
   const header = (
     <div className="flex items-center justify-between">
       <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
@@ -126,7 +153,6 @@ export function DemoOverlay(): JSX.Element | null {
     </div>
   );
 
-  // ── Executing spinner ──
   const executingIndicator = isExecuting ? (
     <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
       <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
@@ -134,14 +160,13 @@ export function DemoOverlay(): JSX.Element | null {
     </div>
   ) : null;
 
-  // ── Modal mode (welcome / completion / no target) ──
   if (isModal) {
     return (
       <>
         {progressBar}
         <div className="fixed inset-0 z-[119] bg-slate-900/60" onClick={demo.pause} />
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div ref={tooltipRef} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             {header}
             <h3 className="mt-2 text-xl font-bold text-slate-900">{currentStep.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">{currentStep.body}</p>
@@ -153,7 +178,6 @@ export function DemoOverlay(): JSX.Element | null {
     );
   }
 
-  // ── Spotlight mode ──
   const placement = currentStep.placement ?? "bottom";
   const pos = computePos(targetRect, placement, tooltipW, measuredH);
 
@@ -161,22 +185,27 @@ export function DemoOverlay(): JSX.Element | null {
     <>
       {progressBar}
 
-      {/* Click-blocking backdrop */}
-      <div className="fixed inset-0 z-[119]" onClick={demo.pause} />
+      <div className="fixed left-0 top-0 z-[119] bg-slate-900/55" style={{ width: window.innerWidth, height: spotlight.top }} onClick={demo.pause} />
+      <div className="fixed left-0 z-[119] bg-slate-900/55" style={{ top: spotlight.top, width: spotlight.left, height: spotlight.height }} onClick={demo.pause} />
+      <div
+        className="fixed z-[119] bg-slate-900/55"
+        style={{ top: spotlight.top, left: spotlight.right, width: Math.max(0, window.innerWidth - spotlight.right), height: spotlight.height }}
+        onClick={demo.pause}
+      />
+      <div className="fixed left-0 z-[119] bg-slate-900/55" style={{ top: spotlight.bottom, width: window.innerWidth, height: Math.max(0, window.innerHeight - spotlight.bottom) }} onClick={demo.pause} />
 
-      {/* Spotlight cutout */}
       <div
         className="fixed z-[120] rounded-lg pointer-events-none transition-all duration-300 ease-out"
         style={{
-          top: targetRect.top - PADDING,
-          left: targetRect.left - PADDING,
-          width: targetRect.width + PADDING * 2,
-          height: targetRect.height + PADDING * 2,
-          boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.55)",
+          top: spotlight.top,
+          left: spotlight.left,
+          width: spotlight.width,
+          height: spotlight.height,
+          border: "2px solid rgba(96, 165, 250, 0.95)",
+          boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 0 8px rgba(59, 130, 246, 0.18), 0 16px 40px rgba(15, 23, 42, 0.25)",
         }}
       />
 
-      {/* Tooltip card */}
       <div
         ref={tooltipRef}
         className="fixed z-[121] rounded-xl border border-slate-200 bg-white p-5 shadow-2xl"

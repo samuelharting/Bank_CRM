@@ -74,6 +74,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }): JSX.E
 
   const abortRef = useRef<AbortController | null>(null);
   const transitioning = useRef(false);
+  const targetRectRef = useRef<DOMRect | null>(null);
 
   // Check for stored progress on mount
   useEffect(() => {
@@ -171,27 +172,55 @@ export function DemoProvider({ children }: { children: React.ReactNode }): JSX.E
     };
   }, [currentStep, modules, steps]);
 
-  // Update target rect when step changes or on scroll/resize
+  // Keep the spotlight in sync while the page animates, resizes, or reflows.
   useEffect(() => {
     if (!currentStep?.target || isPaused) {
+      targetRectRef.current = null;
       setTargetRect(null);
       return;
     }
+
     const attr = currentStep.targetAttr ?? "data-demo";
     const selector = `[${attr}="${currentStep.target}"]`;
+    let frameId = 0;
+
+    const syncRect = (nextRect: DOMRect | null) => {
+      const previous = targetRectRef.current;
+      const changed =
+        previous === null ||
+        nextRect === null ||
+        previous.top !== nextRect.top ||
+        previous.left !== nextRect.left ||
+        previous.width !== nextRect.width ||
+        previous.height !== nextRect.height;
+
+      if (!changed) return;
+
+      targetRectRef.current = nextRect;
+      setTargetRect(nextRect);
+    };
 
     const update = () => {
       const el = document.querySelector(selector);
       if (el) {
-        setTargetRect(el.getBoundingClientRect());
+        syncRect(el.getBoundingClientRect());
       } else {
-        setTargetRect(null);
+        syncRect(null);
       }
     };
+
+    const tick = () => {
+      update();
+      frameId = window.requestAnimationFrame(tick);
+    };
+
     update();
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
+    frameId = window.requestAnimationFrame(tick);
+
     return () => {
+      window.cancelAnimationFrame(frameId);
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };

@@ -333,7 +333,7 @@ export function Dashboard(): JSX.Element {
                       followUps.leads.map((lead, index) => (
                         <button
                           key={lead.id}
-                          {...(index === 0 ? { "data-demo": "dashboard-first-followup" } : {})}
+                          {...(index === 0 ? { "data-demo": "dashboard-primary-relationship" } : {})}
                           onClick={() => openLeadWorkspace(lead.id)}
                           className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
                         >
@@ -421,10 +421,11 @@ export function Dashboard(): JSX.Element {
                 {feed.activities.length === 0 ? (
                   <EmptyState icon={Inbox} message="No recent activity to show." />
                 ) : (
-                  feed.activities.map((activity) => (
+                  feed.activities.map((activity, index) => (
                     <button
                       key={activity.id}
                       type="button"
+                      {...(role !== USER_ROLES.SALES_REP && index === 0 ? { "data-demo": "dashboard-primary-relationship" } : {})}
                       onClick={() => openLeadWorkspace(activity.lead.id)}
                       className="block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
                     >

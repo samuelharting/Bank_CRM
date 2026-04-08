@@ -7,7 +7,6 @@ export const activitiesSteps: DemoStep[] = [
     title: "Touchpoint History",
     body: "The Activities page shows every recorded interaction for the same lead. This is the running history that replaces the need to remember what happened from Outlook alone.",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-navigate-activities" },
       { type: "waitFor", target: "[data-demo='activities-lead-context']", timeoutMs: 12000 },
     ],
   },
@@ -36,6 +35,10 @@ export const activitiesSteps: DemoStep[] = [
     target: "activities-create",
     placement: "bottom",
     skipIf: "[data-demo='activities-create']",
+    afterDismiss: [
+      { type: "click", target: "[data-demo='activities-create']" },
+      { type: "wait", value: "250" },
+    ],
   },
   {
     id: "activities-create-form",
@@ -46,7 +49,6 @@ export const activitiesSteps: DemoStep[] = [
     placement: "left",
     skipIf: "[data-demo='activities-create']",
     beforeShow: [
-      { type: "click", target: "[data-demo='activities-create']" },
       { type: "waitFor", target: "[data-demo='activities-form']", timeoutMs: 8000 },
     ],
     afterDismiss: [
@@ -59,9 +61,9 @@ export const activitiesSteps: DemoStep[] = [
     module: "activities",
     title: "Set The Next Reminder",
     body: "After logging the touchpoint, the next step is setting or checking the reminder so the relationship does not go quiet.",
-    beforeShow: [
+    afterDismiss: [
       { type: "dispatch", value: "crm-demo-navigate-ticklers" },
-      { type: "waitFor", target: "[data-demo='ticklers-lead-context']", timeoutMs: 12000 },
+      { type: "wait", value: "250" },
     ],
   },
 ];

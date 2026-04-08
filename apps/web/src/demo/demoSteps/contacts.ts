@@ -7,7 +7,6 @@ export const contactsSteps: DemoStep[] = [
     title: "Contacts Stay Tied To The Lead",
     body: "We're now on the Contacts page with the same lead already filtered in. This keeps the rep focused on one relationship instead of bouncing between disconnected lists.",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-navigate-contacts" },
       { type: "waitFor", target: "[data-demo='contacts-lead-context']", timeoutMs: 12000 },
     ],
   },
@@ -35,9 +34,9 @@ export const contactsSteps: DemoStep[] = [
     body: "We'll open one of the contacts tied to this lead. The detail panel gives the banker a fast way to review who this person is and what relationship they support.",
     target: "contacts-detail",
     placement: "left",
-    beforeShow: [
+    afterDismiss: [
       { type: "dispatch", value: "crm-demo-open-first-contact" },
-      { type: "waitFor", target: "[data-demo='contacts-detail']", timeoutMs: 10000 },
+      { type: "wait", value: "250" },
     ],
   },
   {
@@ -60,9 +59,9 @@ export const contactsSteps: DemoStep[] = [
     module: "contacts",
     title: "Review The Activity History",
     body: "Next we'll open Activities for this same lead so you can see the touchpoint history without losing context.",
-    beforeShow: [
+    afterDismiss: [
       { type: "dispatch", value: "crm-demo-navigate-activities" },
-      { type: "waitFor", target: "[data-demo='activities-lead-context']", timeoutMs: 12000 },
+      { type: "wait", value: "250" },
     ],
   },
 ];

@@ -7,7 +7,6 @@ export const ticklersSteps: DemoStep[] = [
     title: "Reminder System",
     body: "Ticklers keep follow-up work from slipping through the cracks. We are still on the same lead, now looking at the reminder layer that turns a conversation into a next step.",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-navigate-ticklers" },
       { type: "waitFor", target: "[data-demo='ticklers-lead-context']", timeoutMs: 12000 },
     ],
   },
@@ -45,6 +44,10 @@ export const ticklersSteps: DemoStep[] = [
     target: "ticklers-create",
     placement: "top",
     skipIf: "[data-demo='ticklers-create']",
+    afterDismiss: [
+      { type: "click", target: "[data-demo='ticklers-create']" },
+      { type: "wait", value: "250" },
+    ],
   },
   {
     id: "ticklers-create-form",
@@ -55,7 +58,6 @@ export const ticklersSteps: DemoStep[] = [
     placement: "top",
     skipIf: "[data-demo='ticklers-create']",
     beforeShow: [
-      { type: "click", target: "[data-demo='ticklers-create']" },
       { type: "waitFor", target: "[data-demo='ticklers-form']", timeoutMs: 8000 },
     ],
   },
@@ -70,6 +72,10 @@ export const ticklersSteps: DemoStep[] = [
     beforeShow: [
       { type: "dispatch", value: "crm-tour-open-sidebar" },
       { type: "wait", value: "300" },
+    ],
+    afterDismiss: [
+      { type: "navigate", value: "/map" },
+      { type: "wait", value: "250" },
     ],
   },
 ];

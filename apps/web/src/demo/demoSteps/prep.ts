@@ -7,7 +7,6 @@ export const prepSteps: DemoStep[] = [
     title: "Meeting Prep In One Click",
     body: "Now we're looking at the same lead's prep sheet. This is how a banker gets ready for a call without piecing context together across Outlook, notes, and browser tabs.",
     beforeShow: [
-      { type: "dispatch", value: "crm-demo-navigate-prep" },
       { type: "waitFor", target: "[data-demo='prep-generate']", timeoutMs: 12000 },
     ],
   },
@@ -18,6 +17,10 @@ export const prepSteps: DemoStep[] = [
     body: "The brief combines CRM activity with outside context so the rep can walk into the conversation prepared. If the AI provider is unavailable, the CRM still falls back to the relationship data already on file.",
     target: "prep-generate",
     placement: "bottom",
+    afterDismiss: [
+      { type: "click", target: "[data-demo='prep-generate']" },
+      { type: "wait", value: "250" },
+    ],
   },
   {
     id: "prep-brief",
@@ -28,7 +31,6 @@ export const prepSteps: DemoStep[] = [
     targetAttr: "data-tour",
     placement: "bottom",
     beforeShow: [
-      { type: "click", target: "[data-demo='prep-generate']" },
       { type: "waitFor", target: "[data-tour='prep-brief']", timeoutMs: 15000 },
     ],
   },
@@ -45,9 +47,9 @@ export const prepSteps: DemoStep[] = [
     module: "prep",
     title: "See The Same Lead On Contacts",
     body: "Next we'll jump to Contacts with this lead already in focus so you can see how the same relationship carries across the CRM.",
-    beforeShow: [
+    afterDismiss: [
       { type: "dispatch", value: "crm-demo-navigate-contacts" },
-      { type: "waitFor", target: "[data-demo='contacts-lead-context']", timeoutMs: 12000 },
+      { type: "wait", value: "250" },
     ],
   },
 ];

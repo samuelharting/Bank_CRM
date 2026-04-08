@@ -6,7 +6,7 @@ export const settingsSteps: DemoStep[] = [
     id: "settings-intro",
     module: "settings",
     title: "Settings",
-    body: "The Settings page lets you customize your CRM experience — default filters, display preferences, email sync, and system health.",
+    body: "The Settings page lets you customize your CRM experience - default filters, display preferences, email sync, and system health.",
     beforeShow: [
       { type: "navigate", value: "/settings" },
       { type: "waitFor", target: "[data-tour='settings-preferences']" },
